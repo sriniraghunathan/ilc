@@ -1,19 +1,22 @@
 
-import numpy as np, modules, argparse
-import scipy as sc
+
+import argparse, sys, numpy as np, scipy as sc
+sys.path.append('/Users/sraghunathan/Research/SPTPol/analysis/git/tools/')
+import flatsky, tools, misc
+import ilc, foregrounds as fg
+
 
 h=6.62607004e-34 #Planck constant in m2 kg / s
 k_B=1.38064852e-23 #Boltzmann constant in m2 kg s-2 / K-1
 Tcmb = 2.73 #Kelvin
 
 parser = argparse.ArgumentParser(description='')
-parser.add_argument('-which_exp', dest='which_exp', action='store', help='which_exp', type=str, required = True)
-parser.add_argument('-paramfile', dest='paramfile', action='store', help='paramfile', type=str, default = 'params_planck_r_0.0_2015_cosmo_lensed_LSS.txt')
-parser.add_argument('-pol_frac_per_cent', dest='pol_frac_per_cent', action='store', help='pol_frac_per_cent', type=float, required = 0.04)
-parser.add_argument('-nuarr', dest='nuarr', action='store', type=int, nargs='+', default= [90, 150, 220, 270], help='nuarr')
-parser.add_argument('-noisearr', dest='noisearr', action='store', type=int, nargs='+', default= [2.0, 2.0, 6.9, 8.0], help='noisearr')
-paramfile = 'params/params_planck_r_0.0_2015_cosmo_lensed_LSS.txt'
-
+parser.add_argument('-paramfile', dest='paramfile', action='store', help='paramfile', type=str, default = 'params.ini')
+parser.add_argument('-freqarr', dest='freqarr', action='store', type=int, nargs='+', default= [90, 150, 220, 270], help='freqarr')
+parser.add_argument('-beamarr', dest='beamarr', action='store', type=float, nargs='+', default= [2.3, 1.5, 1.0, 0.8], help='freqarr')
+parser.add_argument('-noisearr', dest='noisearr', action='store', type=float, nargs='+', default= [2.0, 2.0, 6.9, 16.7], help='noisearr')
+parser.add_argument('-elkneearr', dest='elkneearr', action='store', type=float, nargs='+', default= [2154., 4364., 7334., 7308.], help='elkneearr')
+parser.add_argument('-alphakneearr', dest='alphakneearr', action='store', type=float, nargs='+', default= [3.5, 3.5, 3.5, 3.5], help='alphakneearr')
 
 args = parser.parse_args()
 args_keys = args.__dict__
@@ -25,30 +28,54 @@ for kargs in args_keys:
         cmd = '%s = %s' %(kargs, param_value)
     exec(cmd)
 
-nuarr = np.asarray( nuarr )
-pol_frac_per_cent_power = pol_frac_per_cent**2./100. #power
-
-############################################################################################################
-############################################################################################################
+freqarr = np.asarray( freqarr )
 ############################################################################################################
 # read and store param dict
 param_dict = misc.fn_get_param_dict(paramfile)
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
+el = np.arange(param_dict['lmax'])
 
 ############################################################################################################
+#get beam deconvolved noise nls
+
+beam_noise_dic = {}
+for (freq, beam, noise) in zip(freqarr, beamarr, noisearr):
+    beam_noise_dic[freq] = [beam, noise]
+
+elknee_dic = {}
+for (freq, elknee, alphaknee) in zip(freqarr, elkneearr, alphakneearr):
+    elknee_dic[freq] = [elknee, alphaknee]
+
+nl_dic = {}
+for freq in freqarr:
+    beamval, noiseval = beam_noise_dic[freq]
+    nl = misc.get_nl(noiseval, el, beamval, elknee_t=elknee_dic[freq][0], alpha_knee=elknee_dic[freq][1])
+    nl[el<=param_dict['lmin']] = 0.
+    nl[nl == 0.] = np.min(nl[nl!=0.])/1e3
+    nl_dic[freq] = nl
+    
+print(nl_dic.keys())
+
 ############################################################################################################
+
+#get the CMB, noise, and foreground covriance
+try:
+    ignore_fg = param_dict['ignore_fg']
+except:
+    ignore_fg = []
+print(ignore_fg)
+el, cl_dic = ilc.get_covariance_dic(param_dict, freqarr, nl_dic = nl_dic, ignore_fg = ignore_fg)
+print(el)
+sys.exit()
 ############################################################################################################
-#step3: get output power spectrum
-nc = len(nuarr)
+
+nc = len(freqarr)
 acap = np.zeros(nc) + 1. #assuming CMB is the same and calibrations factors are same for all channels
 acap = np.mat(acap).T #should be nc x 1
 
 def fn_create_Clmat(elcnt):
 	Clmat = np.zeros( (nc, nc) )
-	for ncnt1, nuval1 in enumerate(nuarr):
-		for ncnt2, nuval2 in enumerate(nuarr):
+	for ncnt1, nuval1 in enumerate(freqarr):
+		for ncnt2, nuval2 in enumerate(freqarr):
 			#Clmat[ncnt2, ncnt1] = Cls_dic[(nuval1, nuval2)][elcnt,1]
 			Clmat[ncnt2, ncnt1] = Cls_dic[(nuval1, nuval2)][elcnt]
 	return Clmat
@@ -116,7 +143,7 @@ Nl_dic = {}
 Nl_dic['Cl_CMB'] = [els, Cls_CMB]
 Nl_dic['Cl_CMB_cleaned'] = [els, CLEANED_POW_SPEC]
 Nl_dic['Cl_residual'] = [els, RES_POW_SPEC]
-Nl_dic['channels'] = nuarr
+Nl_dic['channels'] = freqarr
 Nl_dic['beams'] = beamarr
 Nl_dic['noiselevels'] = noisearr
 Nl_dic['beam_effective_arcmins'] = op_beam
@@ -158,14 +185,14 @@ quit()
 arXiv: 1303.5072 - appendix D; Eq. D2
 """
 start = time.time()
-nc = len(nuarr)
+nc = len(freqarr)
 acap = np.zeros(nc) + 1. #assuming CMB is the same and calibrations factors are same for all channels
 acap = np.mat(acap).T #should be nc x 1
 
 def fn_create_Clmat(elcnt):
 	Clmat = np.zeros( (nc, nc) )
-	for ncnt1, nuval1 in enumerate(nuarr):
-		for ncnt2, nuval2 in enumerate(nuarr):
+	for ncnt1, nuval1 in enumerate(freqarr):
+		for ncnt2, nuval2 in enumerate(freqarr):
 			#Clmat[ncnt2, ncnt1] = Cls_dic[(nuval1, nuval2)][elcnt,1]
 			Clmat[ncnt2, ncnt1] = Cls_dic[(nuval1, nuval2)][elcnt]
 	return Clmat
@@ -185,7 +212,7 @@ end = time.time()
 print 'Time for get weights = %.1f' %((end-start))
 
 ax = subplot(111)
-for ncnt, nuval in enumerate(nuarr):
+for ncnt, nuval in enumerate(freqarr):
 	plot(els, W[ncnt], label = nuval)		
 
 #ylim(-3.,3.)
@@ -200,7 +227,7 @@ ax = subplot(111, xscale = 'log', yscale = 'log')
 use_beam_window = 1
 colorarr =['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728','#9467bd', '#8c564b', '#e377c2', '#7f7f7f','#bcbd22', '#17becf']
 Nl_tot = np.zeros( len(els) )
-for ncnt, (nuval, noiseval, beamval) in enumerate(zip(nuarr, noisearr, beamarr)):
+for ncnt, (nuval, noiseval, beamval) in enumerate(zip(freqarr, noisearr, beamarr)):
 
 	if use_beam_window:
 		fwhm_radians = np.radians(beamval/60.)
@@ -228,7 +255,7 @@ for ncnt, (nuval, noiseval, beamval) in enumerate(zip(nuarr, noisearr, beamarr))
 import pickle, gzip
 Nl_dic = {}
 Nl_dic['Nl'] = [els, Nl_tot]
-Nl_dic['channels'] = nuarr
+Nl_dic['channels'] = freqarr
 Nl_dic['beams'] = beamarr
 Nl_dic['noiselevels'] = noisearr
 Nl_dic['beam_effective_arcmins'] = op_beam

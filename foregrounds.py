@@ -1,4 +1,6 @@
 import numpy as np, sys, os, scipy as sc
+
+h, k_B, c=6.626e-34,1.38e-23, 3e8
 ################################################################################################################
 
 def get_foreground_power_george_2015(component, freq1=150, freq2=None, units='uk'):
@@ -46,7 +48,7 @@ def get_foreground_power_george_2015(component, freq1=150, freq2=None, units='uk
     #filename = os.path.join(
     #    os.path.dirname(__file__), 'data/foregrounds/george_plot_bestfit_line.sav'
     #)
-    filename = 'data/foregrounds/george_plot_bestfit_line.sav'
+    filename = 'george_plot_bestfit_line.sav'
     from scipy.io import readsav
 
     data = readsav(filename)
@@ -63,10 +65,10 @@ def get_foreground_power_george_2015(component, freq1=150, freq2=None, units='uk
     )
     dls_all = data['ml_dls'][(freqs[:, 0] == freq1) & (freqs[:, 1] == freq2)][0]
     labels = data['ml_dl_labels'].astype('str')
-    ells = np.asarray(data['ml_l'], dtype=int)
+    el = np.asarray(data['ml_l'], dtype=int)
 
     if component == 'all':
-        spec = ells * 0.0
+        spec = el * 0.0
         for fg in components:
             if fg in ['all', 'tSZ-CIB', 'Total', 'CMB']:
                 continue
@@ -75,26 +77,26 @@ def get_foreground_power_george_2015(component, freq1=150, freq2=None, units='uk
         spec = dls_all[labels == component][0]
 
     # Changing Dls to Cls
-    spec /= ells * (ells + 1.0) / 2.0 / np.pi
+    spec /= el * (el + 1.0) / 2.0 / np.pi
     if units.lower() == 'k':
         spec /= 1e12
 
     # Pad to l=0
-    spec = np.concatenate((np.zeros(min(ells)), spec))
+    spec = np.concatenate((np.zeros(min(el)), spec))
+    el = np.concatenate((np.arange(min(el)), el))
 
-    return ells, spec
+    return el, spec
 
 ################################################################################################################
 
 def fn_dB_dT(nu, nu0 = None, temp = 2.725):
     nu *= 1e9
-    h, k, c=6.626e-34,1.38e-23, 3e8
-    x=h*nu/(k*temp)
+    x=h*nu/(k_B*temp)
     dBdT = x**4. * np.exp(x) / (np.exp(x)-1)**2.
 
     if nu0 is not None:
         nu0 *= 1e9
-        x0=h*nu0/(k*temp)
+        x0=h*nu0/(k_B*temp)
         dBdT0 = x0**4 * np.exp(x0) / (np.exp(x0)-1)**2.
         return  dBdT / dbdT0
     else:
@@ -102,8 +104,7 @@ def fn_dB_dT(nu, nu0 = None, temp = 2.725):
 
 def fn_BnuT(nu, temp = 2.725):
     nu *= 1e9
-    h, k, c=6.626e-34,1.38e-23, 3e8
-    x=h*nu/(k*temp)
+    x=h*nu/(k_B*temp)
 
     t1 = 2 * h * nu**3./ c**2.
     t2 = 1./ (np.exp(x)-1.)
@@ -135,13 +136,15 @@ def compton_y_to_delta_Tcmb(freq1, freq2 = None, Tcmb = 2.73):
 
     return Tcmb * np.mean(g_nu)
 
-def get_cl_dust(freq1, freq2, freq0 = 150, spec_index_dg_po = 1.505 - 0.077, spec_index_dg_clus = 2.51-0.2, Tcib = 20.):
+def get_cl_dust(freq1, freq2, fg_model = 'george15', freq0 = 150, spec_index_dg_po = 1.505 - 0.077, spec_index_dg_clus = 2.51-0.2, Tcib = 20.):
 
-    cl_dg_po_freq0 = get_foreground_power_george_2015('DG-Po', freq1 = freq0, freq2 = freq0, return_ells = 1)
-    cl_dg_clus_freq0 = get_foreground_power_george_2015('DG-Cl', freq1 = freq0, freq2 = freq0, return_ells = 1)
+    if fg_model:
+        el, cl_dg_po_freq0 = get_foreground_power_george_2015('DG-Po', freq1 = freq0, freq2 = freq0)
+        el, cl_dg_clus_freq0 = get_foreground_power_george_2015('DG-Cl', freq1 = freq0, freq2 = freq0)
+        el_norm = 3000
 
     #conert to Dls
-    Dls_fac = els * (els+1)/2/np.pi
+    Dls_fac = el * (el+1)/2/np.pi
     Dls_dg_po = Dls_fac * cl_dg_po_freq0
     Dls_dg_clus = Dls_fac * cl_dg_clus_freq0
 
@@ -162,8 +165,8 @@ def get_cl_dust(freq1, freq2, freq0 = 150, spec_index_dg_po = 1.505 - 0.077, spe
     etanu2_dg_clus = ((1.*freq2*1e9)**spec_index_dg_clus) * bnu2
     etanu0_dg_clus = ((1.*freq0*1e9)**spec_index_dg_clus) * bnu0
 
-    Dls_dg_po = Dls_dg_po[els == el_norm][0] * epsilon_nu1_nu2 * (1.*etanu1_dg_po * etanu2_dg_po/etanu0_dg_po/etanu0_dg_po) * (els*1./el_norm)**2
-    Dls_dg_clus = Dls_dg_clus[els == el_norm][0] * epsilon_nu1_nu2 * (1.*etanu1_dg_clus * etanu2_dg_clus/etanu0_dg_clus/etanu0_dg_clus) * (els*1./el_norm)**0.8
+    Dls_dg_po = Dls_dg_po[el == el_norm][0] * epsilon_nu1_nu2 * (1.*etanu1_dg_po * etanu2_dg_po/etanu0_dg_po/etanu0_dg_po) * (el*1./el_norm)**2
+    Dls_dg_clus = Dls_dg_clus[el == el_norm][0] * epsilon_nu1_nu2 * (1.*etanu1_dg_clus * etanu2_dg_clus/etanu0_dg_clus/etanu0_dg_clus) * (el*1./el_norm)**0.8
 
     cl_dg_po = Dls_dg_po / Dls_fac
     cl_dg_clus = Dls_dg_clus / Dls_fac
@@ -171,16 +174,12 @@ def get_cl_dust(freq1, freq2, freq0 = 150, spec_index_dg_po = 1.505 - 0.077, spe
     cl_dg_po[np.isnan(cl_dg_po)] = 0.
     cl_dg_clus[np.isinf(cl_dg_clus)] = 0.
 
-    return cl_dg_po, cl_dg_clus
+    return el, cl_dg_po, cl_dg_clus
 
-def get_cl_tsz(freq1, freq2, freq0 = 150):
+def get_cl_tsz(freq1, freq2, freq0 = 150, fg_model = 'george15'):
 
-    cl_tsz_freq0 = get_foreground_power_george_2015('DG-Po', freq1 = freq0, freq2 = freq0, return_ells = 1)
-
-    #conert to Dls
-    Dls_fac = els * (els+1)/2/np.pi
-    Dls_dg_po = Dls_fac * cl_dg_po_freq0
-    Dls_dg_clus = Dls_fac * cl_dg_clus_freq0
+    if fg_model:
+        el, cl_tsz_freq0 = get_foreground_power_george_2015('DG-Po', freq1 = freq0, freq2 = freq0)
 
     tsz_fac_freq0 = compton_y_to_delta_Tcmb(freq0*1e9)
     tsz_fac_freq1 = compton_y_to_delta_Tcmb(freq1*1e9)
@@ -188,56 +187,20 @@ def get_cl_tsz(freq1, freq2, freq0 = 150):
 
     scalefac = tsz_fac_freq1 * tsz_fac_freq2/ (tsz_fac_freq0**2.)
 
-    cl_tsz = fg_cl_tSZ * (scalefac**2.)
+    cl_tsz = cl_tsz_freq0 * scalefac
     cl_tsz[np.isnan(cl_tsz)] = 0.
     cl_tsz[np.isinf(cl_tsz)] = 0.
 
-    return cl_tsz
+    return el, cl_tsz
 
-def get_cl_radio(freq1, freq2, freq0 = 150, spec_index_dg_po = 1.505 - 0.077, spec_index_dg_clus = 2.51-0.2, Tcib = 20., el_norm = 3000):
+def get_cl_radio(freq1, freq2, freq0 = 150, fg_model = 'george15', spec_index_rg = -0.9):
 
-    cl_dg_po_freq0 = get_foreground_power_george_2015('DG-Po', freq1 = freq0, freq2 = freq0, return_ells = 1)
-    cl_dg_clus_freq0 = get_foreground_power_george_2015('DG-Cl', freq1 = freq0, freq2 = freq0, return_ells = 1)
-
-    #conert to Dls
-    Dls_fac = els * (els+1)/2/np.pi
-    Dls_dg_po = Dls_fac * cl_dg_po_freq0
-    Dls_dg_clus = Dls_fac * cl_dg_clus_freq0
-
-    nr = ( fn_dB_dT(freq0) )**2.
-    dr = fn_dB_dT(freq1) * fn_dB_dT(freq2)
-
-    epsilon_nu1_nu2 = nr/dr
-
-    bnu1 = fn_BnuT(freq1, temp = Tcib)
-    bnu2 = fn_BnuT(freq2, temp = Tcib)
-    bnu0 = fn_BnuT(freq0, temp = Tcib)
-
-    etanu1_dg_po = ((1.*freq1*1e9)**spec_index_dg_po) * bnu1
-    etanu2_dg_po = ((1.*freq2*1e9)**spec_index_dg_po) * bnu2
-    etanu0_dg_po = ((1.*freq0*1e9)**spec_index_dg_po) * bnu0
-
-    etanu1_dg_clus = ((1.*freq1*1e9)**spec_index_dg_clus) * bnu1
-    etanu2_dg_clus = ((1.*freq2*1e9)**spec_index_dg_clus) * bnu2
-    etanu0_dg_clus = ((1.*freq0*1e9)**spec_index_dg_clus) * bnu0
-
-    Dls_dg_po = Dls_dg_po[els == el_norm][0] * epsilon_nu1_nu2 * (1.*etanu1_dg_po * etanu2_dg_po/etanu0_dg_po/etanu0_dg_po) * (els*1./el_norm)**2
-    Dls_dg_clus = Dls_dg_clus[els == el_norm][0] * epsilon_nu1_nu2 * (1.*etanu1_dg_clus * etanu2_dg_clus/etanu0_dg_clus/etanu0_dg_clus) * (els*1./el_norm)**0.8
-
-    cl_dg_po = Dls_dg_po / Dls_fac
-    cl_dg_clus = Dls_dg_clus / Dls_fac
-
-    cl_dg_po[np.isnan(cl_dg_po)] = 0.
-    cl_dg_clus[np.isinf(cl_dg_clus)] = 0.
-
-    return cl_dg_po, cl_dg_clus
-
-def get_cl_radio(freq1, freq2, freq0 = 150, spec_index_rg = -0.9, el_norm = 3000):
-
-    cl_rg_freq0 = get_foreground_power_george_2015('RG', freq1 = freq0, freq2 = freq0, return_ells = 1)
+    if fg_model:
+        el, cl_rg_freq0 = get_foreground_power_george_2015('RG', freq1 = freq0, freq2 = freq0)
+        el_norm = 3000
 
     #conert to Dls
-    Dls_fac = els * (els+1)/2/np.pi
+    Dls_fac = el * (el+1)/2/np.pi
     Dls_rg = Dls_fac * cl_rg_freq0
 
     nr = ( fn_dB_dT(freq0) )**2.
@@ -245,10 +208,10 @@ def get_cl_radio(freq1, freq2, freq0 = 150, spec_index_rg = -0.9, el_norm = 3000
 
     epsilon_nu1_nu2 = nr/dr
 
-    Dls_rg = Dls_rg[els == el_norm][0] * epsilon_nu1_nu2 * (1.*freq1 * freq2/freq0/freq0)**spec_index_rg * (els*1./el_norm)**2
+    Dls_rg = Dls_rg[el == el_norm][0] * epsilon_nu1_nu2 * (1.*freq1 * freq2/freq0/freq0)**spec_index_rg * (el*1./el_norm)**2
 
     cl_rg = Dls_rg / Dls_fac
 
     cl_rg[np.isnan(cl_rg)] = 0.
 
-    return cl_rg
+    return el, cl_rg

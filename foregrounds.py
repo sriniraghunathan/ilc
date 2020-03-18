@@ -3,7 +3,7 @@ import numpy as np, sys, os, scipy as sc
 h, k_B, c=6.626e-34,1.38e-23, 3e8
 ################################################################################################################
 
-def get_foreground_power_george_2015(component, freq1=150, freq2=None, units='uk'):
+def get_foreground_power_george_2015(component, freq1=150, freq2=None, units='uk', lmax = None):
     """
     Foreground powers from George et al. 2015 results.
 
@@ -85,6 +85,10 @@ def get_foreground_power_george_2015(component, freq1=150, freq2=None, units='uk
     spec = np.concatenate((np.zeros(min(el)), spec))
     el = np.concatenate((np.arange(min(el)), el))
 
+    if lmax is not None:
+        el = el[:lmax]
+        spec = spec[:lmax]
+
     return el, spec
 
 ################################################################################################################
@@ -129,10 +133,10 @@ def compton_y_to_delta_Tcmb(freq1, freq2 = None, Tcmb = 2.73):
         if freq2<1e3: freq2 = freq2 * 1e9
         freq = np.arange(freq1,freq2,delta_nu)
     else:
-        freq = [freq1]
+        freq = np.asarray([freq1])
 
-    x = np.asarray( map( lambda n: (h * n) / (k_B * Tcmb), freq) )
-    g_nu = np.asarray( map( lambda n: n * coth(n/2.) - 4., x) )
+    x = (h * freq) / (k_B * Tcmb)
+    g_nu = x * coth(x/2.) - 4.
 
     return Tcmb * np.mean(g_nu)
 

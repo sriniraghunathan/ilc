@@ -67,18 +67,24 @@ print(cl_residual)
 
 if 1==1:#show_plots:
     from pylab import *
-    freq0 = param_dict['freq0']
-    el_, cl_cmb = fg.get_foreground_power_george_2015('CMB', freq1 = freq0)
-    cl_cmb = cl_cmb[:len(el)]
+    freq0, lmax = param_dict['freq0'], param_dict['lmax']
+    el_, cl_cmb = fg.get_foreground_power_george_2015('CMB', freq1 = freq0, lmax = lmax)
+    foregrounds_to_plot = ['kSZ', 'tSZ', 'DG-Po', 'DG-Cl', 'RG']
+
     clf(); 
     ax = subplot(111, xscale = 'log', yscale = 'log')
-    plot(el, cl_cmb, 'k', lw = 3.)
-    plot(el, cl_residual, 'lime', label = 'Residual')
-    plot(el, nl_dic[freq0], 'r', label = '150 GHz - White')
-    legend(loc=1, fancybox=1);
-    #xlim(1,12e3);#ylim(1e-3,1e4);#xlim(100,2e4)#;ylim(1,1e4)
+    plot(el, cl_cmb, 'gray', lw = 1., label = r'CMB')
+    plot(el, cl_residual, 'black', lw = 2., label = r'Residual')
+    for curr_fg in foregrounds_to_plot:
+        el_, cl_curr_fg = fg.get_foreground_power_george_2015(curr_fg, freq1 = freq0, lmax = lmax)
+        plot(el, cl_curr_fg, lw = 0.5, ls = '--', label = r'%s' %(curr_fg), alpha = 1.)
+    for freq in freqarr:
+        plot(el, nl_dic[freq], lw = 0.5, ls = '-', label = r'Noise: %s' %(freq))#, alpha = 0.5)
+    legend(loc=1, fancybox=1, ncol = 4, fontsize = 8);
+    xlim(10,1e4);#ylim(1e-3,1e4);
+    xlabel(r'Multipole $\ell$')
+    ylabel(r'$C_{\ell}$')
     show()
-
     
 
 

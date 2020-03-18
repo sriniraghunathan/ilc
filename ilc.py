@@ -111,6 +111,9 @@ def residual_power(param_dict, freqarr, el, cl_dic, final_comp = 'CMB', freqcali
     cl_ini = cl_ini[:len(cl_cleaned)]
 
     cl_residual = cl_cleaned - cl_ini
+
+    cl_residual[np.isinf(cl_residual)] = 0.
+    cl_residual[np.isnan(cl_residual)] = 0.
     
     return cl_residual
 

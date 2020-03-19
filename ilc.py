@@ -1,14 +1,15 @@
 import numpy as np, sys, os, scipy as sc, healpy as H, foregrounds as fg
 ################################################################################################################
 
-def get_covariance_dic(param_dict, freqarr, nl_dic = None, ignore_fg = []):
+def get_covariance_dic(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol = 0, pol_frac_per_cent_dust = 0.02, pol_frac_per_cent_radio = 0.03, pol_frac_per_cent_tsz = 0., pol_frac_per_cent_ksz = 0.):
 
-    #get the Cls for the baseline band
-    el, cl_cmb = fg.get_foreground_power_george_2015('CMB', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
+    ##el, cl_cmb = fg.get_foreground_power_george_2015('CMB', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
     el, cl_ksz = fg.get_foreground_power_george_2015('kSZ', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
+    if pol:
+        cl_ksz = cl_ksz * pol_frac_per_cent_ksz**2.
 
     cl_dic = {}
-
+    cl_ori = np.zeros(len(el))
     for freq1 in freqarr:
         for freq2 in freqarr:
 
@@ -18,15 +19,23 @@ def get_covariance_dic(param_dict, freqarr, nl_dic = None, ignore_fg = []):
 
             #get dust
             el,  cl_dg_po, cl_dg_clus = fg.get_cl_dust(freq1, freq2, freq0 = param_dict['freq0'], fg_model = param_dict['fg_model'], spec_index_dg_po = param_dict['spec_index_dg_po'], spec_index_dg_clus = param_dict['spec_index_dg_clus'], Tcib = param_dict['Tcib'])
+            if pol:
+                cl_dg_po = cl_dg_po * pol_frac_per_cent_dust**2.
+                cl_dg_clus = cl_dg_clus * pol_frac_per_cent_dust**2.
 
             #get tsz
             el, cl_tsz = fg.get_cl_tsz(freq1, freq2, freq0 = param_dict['freq0'], fg_model = param_dict['fg_model'])
+            if pol:
+                cl_tsz = cl_tsz * pol_frac_per_cent_tsz**2.
 
             #get radio
             el, cl_radio = fg.get_cl_radio(freq1, freq2, freq0 = param_dict['freq0'], fg_model = param_dict['fg_model'], spec_index_rg = param_dict['spec_index_rg'])
+            if pol:
+                cl_radio = cl_radio * pol_frac_per_cent_radio**2.
 
-            if 'cmb' not in ignore_fg:
-                cl = np.copy(cl_cmb)
+            cl = np.copy( cl_ori )
+            #if 'cmb' not in ignore_fg:
+            #    cl = np.copy(cl_cmb)
             if 'ksz' not in ignore_fg:
                 cl = cl + cl_ksz             
             if 'tsz' not in ignore_fg:
@@ -65,7 +74,7 @@ def get_covariance_dic(param_dict, freqarr, nl_dic = None, ignore_fg = []):
 
             ##loglog(cl); title('%s - %s' %(freq1, freq2)); show()
 
-            cl_dic[(freq1, freq2)] = cl 
+            cl_dic[(freq1, freq2)] = cl
 
 
     return el, cl_dic  
@@ -89,15 +98,16 @@ def residual_power(param_dict, freqarr, el, cl_dic, final_comp = 'CMB', freqcali
 
     acap = get_acap(freqarr, final_comp = final_comp, freqcalib_fac = freqcalib_fac)
 
-    cl_cleaned = np.zeros( (len(el)) )
+    cl_residual = np.zeros( (len(el)) )
     for elcnt, el in enumerate(el):
         clmat = np.mat( create_clmat(freqarr, elcnt, cl_dic) )
         clinv = sc.linalg.pinv2(clmat)
         
         nr = 1.
         dr = np.dot( acap.T, np.dot(clinv, acap) )
-        cl_cleaned[elcnt] = np.asarray(nr/dr).squeeze()
+        cl_residual[elcnt] = np.asarray(nr/dr).squeeze()
 
+    '''
     if final_comp == 'CMB':
         el, cl_ini = fg.get_foreground_power_george_2015('CMB', freq1 = param_dict['freq0'])
     elif final_comp == 'kSZ':
@@ -108,14 +118,16 @@ def residual_power(param_dict, freqarr, el, cl_dic, final_comp = 'CMB', freqcali
             freqscale_fac = compton_y_to_delta_Tcmb(param_dict['freq0'] * 1e9)
             cl_ini = cl_ini/freqscale_fac
 
-    cl_ini = cl_ini[:len(cl_cleaned)]
+    cl_ini = cl_ini[:len(cl_residual)]
 
-    cl_residual = cl_cleaned - cl_ini
+    cl_residual = cl_residual - cl_ini
+    '''
 
     cl_residual[np.isinf(cl_residual)] = 0.
     cl_residual[np.isnan(cl_residual)] = 0.
     
     return cl_residual
+
 
 ################################################################################################################
 

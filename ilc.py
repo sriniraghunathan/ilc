@@ -158,7 +158,7 @@ def get_acap(freqarr, final_comp = 'CMB', freqcalib_fac = None):
 
 ################################################################################################################
 
-def get_ilc_map(final_comp, map_dic, bl_dic, nside, lmax, cl_dic = None, nl_dic = None, lmin = 10, freqcalib_fac = None, ignore_fg = [], full_sky = 0, mapparams = None, apod_mask = None):
+def get_ilc_map(final_comp, el, map_dic, bl_dic, nside, lmax, cl_dic = None, nl_dic = None, lmin = 10, freqcalib_fac = None, ignore_fg = [], full_sky = 0, mapparams = None, apod_mask = None):
 
     """
     inputs:
@@ -259,7 +259,7 @@ def apply_ilc_weightsarr(maparr, weightsarr, nside, lmax, full_sky = 0, verbose 
     '''
 
     #get the ilc combined map now
-    weighted_maparr = []
+    weighted_almarr = []
     for mm in range(len(maparr)):
         if full_sky:
             map_alm = H.map2alm(maparr[mm], lmax = lmax)
@@ -274,17 +274,22 @@ def apply_ilc_weightsarr(maparr, weightsarr, nside, lmax, full_sky = 0, verbose 
                 map_alm_weighted[alm_inds] =  curr_weight[el] * map_alm[alm_inds]
             '''
             #plot(map_alm_weighted.real, 'r');show();sys.exit()
-            map_weighted = H.alm2map(map_alm_weighted, nside = nside, verbose = verbose, lmax = lmax)
+            ###map_weighted = H.alm2map(map_alm_weighted, nside = nside, verbose = verbose, lmax = lmax)
             #clf();plot(curr_weight); show()
             #H.mollview(maparr[mm], sub = (1,2,1)); H.mollview(map_weighted, sub = (1,2,2)); show()
         else:
             curr_map = maparr[mm]
             weightsarr[mm][np.isnan(weightsarr[mm])]=0.
             weightsarr[mm][np.isinf(weightsarr[mm])]=0.
-            map_weighted = np.fft.ifft2( np.fft.fft2(curr_map) * weightsarr[mm] ).real
-        weighted_maparr.append(map_weighted)
+            map_alm_weighted = np.fft.fft2(curr_map) * weightsarr[mm]
+        weighted_almarr.append(map_alm_weighted)
 
-    ilc_map = np.sum(weighted_maparr, axis = 0)
+    ilc_alm = np.sum(weighted_almarr, axis = 0)
+
+    if full_sky:
+        ilc_map = H.alm2map(ilc_alm, nside = nside, verbose = verbose, lmax = lmax)
+    else:
+        ilc_map = np.fft.ifft2( ilc_alm ).real
 
     return ilc_map
 
@@ -298,7 +303,7 @@ def get_multipole_weightsarr(final_comp, freqarr, el, cl_dic, lmin, freqcalib_fa
 
     #get weightsarr
     if np.ndim(el) == 1:
-        weightsarr = np.zeros( (nc, el.shape) )
+        weightsarr = np.zeros( (nc, len( el ) ) )
         for elcnt, curr_el in enumerate( el ):
             if curr_el <= lmin: continue ## or el>=lmax: continue
             clmat = np.mat( create_clmat(freqarr, elcnt, cl_dic) )

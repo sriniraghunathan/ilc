@@ -1,4 +1,4 @@
-import numpy as np, sys, os, scipy as sc, healpy as H, foregrounds as fg
+import numpy as np, sys, os, scipy as sc, healpy as H, foregrounds as fg, misc
 ################################################################################################################
 
 def get_covariance_dic(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol = 0, pol_frac_per_cent_dust = 0.02, pol_frac_per_cent_radio = 0.03, pol_frac_per_cent_tsz = 0., pol_frac_per_cent_ksz = 0.):
@@ -189,6 +189,7 @@ def get_ilc_map(final_comp, el, map_dic, bl_dic, nside, lmax, cl_dic = None, nl_
     for keyname in sorted(map_dic):
         freqarr.append( keyname )
         curr_map = map_dic[keyname]
+        '''
         if isinstance(curr_map, core.G3Frame):
             spt3g_maps = 1
             #get the apodisation mask before converting the map inot an array
@@ -201,6 +202,7 @@ def get_ilc_map(final_comp, el, map_dic, bl_dic, nside, lmax, cl_dic = None, nl_
 
         if apod_mask is not None:
             curr_map = curr_map * apod_mask
+        '''
 
         maparr.append( curr_map )
 

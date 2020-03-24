@@ -52,10 +52,13 @@ def get_covariance_dic(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol =
             #noise auto power spectrum
             if nl_dic is not None:
 
-                nl = nl_dic[freq1]                    
-                if freq1 != freq2: 
-                    nl = np.copy(nl) * 0.
-
+                if (freq1,freq2) in nl_dic:
+                    nl = nl_dic[(freq1,freq2)]
+                else:
+                    nl = nl_dic[freq1]
+                    if freq1 != freq2: 
+                        nl = np.copy(nl) * 0.
+                
                 if len(cl) > len(nl):
                     cl = cl[:len(nl)]
                 elif len(cl) < len(nl):
@@ -67,6 +70,7 @@ def get_covariance_dic(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol =
                 nl = np.zeros(len(cl))
                 #20191116 - fix this: there must be noise correlation in case of atmospheric noise
                 print('\n\n\t\tfix me: there must be noise correlation in case of atmospheric noise')
+                sys.exit()
 
             cl = cl + nl
 

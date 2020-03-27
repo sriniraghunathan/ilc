@@ -3,7 +3,7 @@ import numpy as np, sys, os, scipy as sc, healpy as H, foregrounds as fg, misc
 
 def get_covariance_dic(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol = 0, pol_frac_per_cent_dust = 0.02, pol_frac_per_cent_radio = 0.03, pol_frac_per_cent_tsz = 0., pol_frac_per_cent_ksz = 0.):
 
-    #ignroe_fg = foreground terms that must be ignore
+    #ignore_fg = foreground terms that must be ignore
     possible_ignore_fg = ['cmb', 'tsz', 'ksz', 'radio', 'dust']
     if len(ignore_fg)>0:
         if not all( [ fg in possible_ignore_fg for fg in ignore_fg] ):

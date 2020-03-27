@@ -3,6 +3,13 @@ import numpy as np, sys, os, scipy as sc, healpy as H, foregrounds as fg, misc
 
 def get_covariance_dic(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol = 0, pol_frac_per_cent_dust = 0.02, pol_frac_per_cent_radio = 0.03, pol_frac_per_cent_tsz = 0., pol_frac_per_cent_ksz = 0.):
 
+    #ignroe_fg = foreground terms that must be ignore
+    possible_ignore_fg = ['cmb', 'tsz', 'ksz', 'radio', 'dust']
+    if len(ignore_fg)>0:
+        if not all( [ fg in possible_ignore_fg for fg in ignore_fg] ):
+            print( '\n\t Alert: Elements of ignore_fg should be one of the following: %s\n\n' %(np.array2string(np.asarray(possible_ignore_fg))) )
+            sys.exit()
+
     ##el, cl_cmb = fg.get_foreground_power_george_2015('CMB', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
     el, cl_ksz = fg.get_foreground_power_george_2015('kSZ', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
     if pol:
@@ -34,15 +41,19 @@ def get_covariance_dic(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol =
                 cl_radio = cl_radio * pol_frac_per_cent_radio**2.
 
             cl = np.copy( cl_ori )
-            #if 'cmb' not in ignore_fg:
-            #    cl = np.copy(cl_cmb)
+            if 'cmb' not in ignore_fg:
+                cl = cl + np.copy(cl_cmb)
             if 'ksz' not in ignore_fg:
+                print('ksz')
                 cl = cl + cl_ksz             
             if 'tsz' not in ignore_fg:
+                print('tsz')
                 cl = cl + cl_tsz
             if 'radio' not in ignore_fg:
+                print('radio')
                 cl = cl + cl_radio
             if 'dust' not in ignore_fg:
+                print('dust')
                 cl = cl + cl_dg_po + cl_dg_clus
 
             #make sure cl start from el=0 rather than el=10 which is the default for SPT G15 results

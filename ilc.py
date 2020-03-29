@@ -1,7 +1,7 @@
 import numpy as np, sys, os, scipy as sc, healpy as H, foregrounds as fg, misc
 ################################################################################################################
 
-def get_covariance_dic(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol = 0, pol_frac_per_cent_dust = 0.02, pol_frac_per_cent_radio = 0.03, pol_frac_per_cent_tsz = 0., pol_frac_per_cent_ksz = 0.):
+def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol = 0, pol_frac_per_cent_dust = 0.02, pol_frac_per_cent_radio = 0.03, pol_frac_per_cent_tsz = 0., pol_frac_per_cent_ksz = 0.):
 
     #ignore_fg = foreground terms that must be ignored
     possible_ignore_fg = ['cmb', 'tsz', 'ksz', 'radio', 'dust']
@@ -173,7 +173,7 @@ def get_acap(freqarr, final_comp = 'CMB', freqcalib_fac = None):
 
 ################################################################################################################
 
-def get_ilc_map(final_comp, el, map_dic, bl_dic, nside, lmax, cl_dic = None, nl_dic = None, lmin = 10, freqcalib_fac = None, ignore_fg = [], full_sky = 0, mapparams = None, apod_mask = None):
+def get_ilc_map(final_comp, el, map_dic, bl_dic, nside, lmax, cl_dic = None, nl_dic = None, lmin = 10, freqcalib_fac = None, ignore_fg = [], full_sky = 1, estimate_covariance = 0, mapparams = None, apod_mask = None):
 
     """
     inputs:
@@ -213,20 +213,25 @@ def get_ilc_map(final_comp, el, map_dic, bl_dic, nside, lmax, cl_dic = None, nl_
             curr_map = np.array( curr_map['T'] ) ## / core.G3Units.uK
             curr_map[np.isnan(curr_map)] = 0.
             curr_map[np.isinf(curr_map)] = 0.
-
-
+        '''
         if apod_mask is not None:
             curr_map = curr_map * apod_mask
-        '''
 
         maparr.append( curr_map )
 
     #get covariance
     if cl_dic is None:
+        '''
         if spt3g_maps:
             el, cl_dic = get_spt3g_covariance_dic(map_dic, lmin, lmax)
         else:
-            el, cl_dic = get_covariance_dic(freqarr, nl_dic = nl_dic, ignore_fg = ignore_fg)
+            el, cl_dic = get_analytic_covariance(freqarr, nl_dic = nl_dic, ignore_fg = ignore_fg)
+        '''
+        if estimate_covariance:
+            el, cl_dic = get_map_covariance(map_dic, lmin, lmax) 
+        else:
+            el, cl_dic = get_analytic_covariance(freqarr, nl_dic = nl_dic, ignore_fg = ignore_fg)
+
 
     #get weights
     weightsarr = get_multipole_weightsarr(final_comp, freqarr, el, cl_dic, lmin, freqcalib_fac, ignore_fg)
@@ -355,7 +360,39 @@ def get_multipole_weightsarr(final_comp, freqarr, el, cl_dic, lmin, freqcalib_fa
     return weightsarr
 
 ################################################################################################################
+def get_map_covariance(map_dic, lmax, apod_mask = None):#, lmin = 2):
 
+    print('Estimating covariance from maps now')
+
+    freqarr = sorted(map_dic.keys())
+    cl_dic = {}
+    for cntr1, freq1 in enumerate( freqarr ):
+        for cntr2, freq2 in enumerate( freqarr ):
+            if (freq2, freq1) in cl_dic:
+                cl_dic[(freq1, freq2)] = cl_dic[(freq2, freq1)]
+                continue
+            print((freq2, freq1))
+            map1, map2 = map_dic[freq1], map_dic[freq2]
+
+            cl = H.anafast(map1, map2, lmax = lmax - 1)# lmax + lmin - 1)
+            #cl = cl[lmin: lmax]
+
+            #account for the mask
+            if apod_mask is not None:
+                fsky = np.mean(apod_mask)**2.
+                cl /= fsky
+
+            cl[np.isnan(cl)] = 0.
+            cl[np.isinf(cl)] = 0.
+            cl_dic[(freq1, freq2)] = cl 
+        
+            #el = np.arange(lmin, lmax + lmin)
+            el = np.arange(lmax)
+
+    return el, cl_dic
+
+################################################################################################################
+'''
 def get_spt3g_covariance_dic(map_dic, lmin, lmax, apod_mask = 'from_weight', return_2d = 1):
 
     freqarr = sorted(map_dic.keys())
@@ -389,5 +426,6 @@ def get_spt3g_covariance_dic(map_dic, lmin, lmax, apod_mask = 'from_weight', ret
                 el = np.concatenate( (np.zeros(lmin), el) )
 
     return el, cl_dic
+'''
 
 ################################################################################################################

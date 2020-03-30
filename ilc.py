@@ -264,6 +264,9 @@ def get_ilc_map(final_comp, el, map_dic, bl_dic, nside, lmax, cl_dic = None, nl_
     #get ilc map now
     ilc_map = apply_ilc_weightsarr(maparr, weightsarr, nside, lmax, full_sky = full_sky)
 
+    if apod_mask is not None:
+        ilc_map = ilc_map * apod_mask
+
     return ilc_map, weightsarr_1d
 
 ################################################################################################################

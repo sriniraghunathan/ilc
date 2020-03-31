@@ -44,16 +44,16 @@ def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], 
             if 'cmb' not in ignore_fg:
                 cl = cl + np.copy(cl_cmb)
             if 'ksz' not in ignore_fg:
-                print('ksz')
+                #print('ksz')
                 cl = cl + cl_ksz             
             if 'tsz' not in ignore_fg:
-                print('tsz')
+                #print('tsz')
                 cl = cl + cl_tsz
             if 'radio' not in ignore_fg:
-                print('radio')
+                #print('radio')
                 cl = cl + cl_radio
             if 'dust' not in ignore_fg:
-                print('dust')
+                #print('dust')
                 cl = cl + cl_dg_po + cl_dg_clus
 
             #make sure cl start from el=0 rather than el=10 which is the default for SPT G15 results
@@ -109,7 +109,7 @@ def create_clmat(freqarr, elcnt, cl_dic):
     return clmat
 
 ################################################################################################################
-def residual_power(param_dict, freqarr, el, cl_dic, final_comp = 'CMB', freqcalib_fac = None):
+def residual_power(param_dict, freqarr, el, cl_dic, final_comp = 'cmb', freqcalib_fac = None):
 
     acap = get_acap(freqarr, final_comp = final_comp, freqcalib_fac = freqcalib_fac)
 
@@ -146,7 +146,7 @@ def residual_power(param_dict, freqarr, el, cl_dic, final_comp = 'CMB', freqcali
 
 ################################################################################################################
 
-def get_acap(freqarr, final_comp = 'CMB', freqcalib_fac = None):
+def get_acap(freqarr, final_comp = 'cmb', freqcalib_fac = None):
 
     nc = len(freqarr)
 

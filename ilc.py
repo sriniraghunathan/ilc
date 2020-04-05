@@ -10,7 +10,7 @@ def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], 
             print( '\n\t Alert: Elements of ignore_fg should be one of the following: %s\n\n' %(np.array2string(np.asarray(possible_ignore_fg))) )
             sys.exit()
 
-    ##el, cl_cmb = fg.get_foreground_power_george_2015('CMB', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
+    el, cl_cmb = fg.get_foreground_power_george_2015('CMB', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
     el, cl_ksz = fg.get_foreground_power_george_2015('kSZ', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
     if pol:
         cl_ksz = cl_ksz * pol_frac_per_cent_ksz**2.
@@ -86,6 +86,7 @@ def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], 
             cl = cl + nl
 
             cl[np.isnan(cl)] = 0.
+            cl[np.isinf(cl)] = 0.
 
             ##loglog(cl); title('%s - %s' %(freq1, freq2)); show()
 
@@ -363,7 +364,7 @@ def get_multipole_weightsarr(final_comp, freqarr, el, cl_dic, lmin, freqcalib_fa
     return weightsarr
 
 ################################################################################################################
-def get_map_covariance(map_dic, lmax, apod_mask = None):#, lmin = 2):
+def get_map_covariance(map_dic, lmax, bl_dic, apod_mask = None):#, lmin = 2):
 
     print('Estimating covariance from maps now')
 
@@ -378,6 +379,8 @@ def get_map_covariance(map_dic, lmax, apod_mask = None):#, lmin = 2):
             map1, map2 = map_dic[freq1], map_dic[freq2]
 
             cl = H.anafast(map1, map2, lmax = lmax - 1)# lmax + lmin - 1)
+            blsquare = bl_dic[freq1] * bl_dic[freq2]
+            cl /= blsquare
             #cl = cl[lmin: lmax]
 
             #account for the mask

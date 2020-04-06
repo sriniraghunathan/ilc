@@ -53,6 +53,7 @@ def get_foreground_power_george_2015(component, freq1=150, freq2=None, units='uk
 
     data = readsav(filename)
 
+    #from IPython import embed; embed()
     if freq2 is None:
         freq2 = freq1
     if freq1 == 90:

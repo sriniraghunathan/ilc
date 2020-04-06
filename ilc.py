@@ -6,7 +6,7 @@ def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], 
     #ignore_fg = foreground terms that must be ignored
     possible_ignore_fg = ['cmb', 'tsz', 'ksz', 'radio', 'dust']
     if len(ignore_fg)>0:
-        if not all( [ fg in possible_ignore_fg for fg in ignore_fg] ):
+        if not all( [ currfg in possible_ignore_fg for currfg in ignore_fg] ):
             print( '\n\t Alert: Elements of ignore_fg should be one of the following: %s\n\n' %(np.array2string(np.asarray(possible_ignore_fg))) )
             sys.exit()
 

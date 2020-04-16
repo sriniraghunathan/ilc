@@ -144,8 +144,8 @@ def compton_y_to_delta_Tcmb(freq1, freq2 = None, Tcmb = 2.73):
 def get_cl_dust(freq1, freq2, fg_model = 'george15', freq0 = 150, spec_index_dg_po = 1.505 - 0.077, spec_index_dg_clus = 2.51-0.2, Tcib = 20.):
 
     if fg_model:
-        el, cl_dg_po_freq0 = get_foreground_power_george_2015('DG-Po', freq1 = freq0, freq2 = freq0)
-        el, cl_dg_clus_freq0 = get_foreground_power_george_2015('DG-Cl', freq1 = freq0, freq2 = freq0)
+        el, cl_dg_po_freq0 = get_foreground_power_spt('DG-Po', freq1 = freq0, freq2 = freq0)
+        el, cl_dg_clus_freq0 = get_foreground_power_spt('DG-Cl', freq1 = freq0, freq2 = freq0)
         el_norm = 3000
 
     #conert to Dls
@@ -184,7 +184,7 @@ def get_cl_dust(freq1, freq2, fg_model = 'george15', freq0 = 150, spec_index_dg_
 def get_cl_tsz(freq1, freq2, freq0 = 150, fg_model = 'george15'):
 
     if fg_model:
-        el, cl_tsz_freq0 = get_foreground_power_george_2015('DG-Po', freq1 = freq0, freq2 = freq0)
+        el, cl_tsz_freq0 = get_foreground_power_spt('DG-Po', freq1 = freq0, freq2 = freq0)
 
     tsz_fac_freq0 = compton_y_to_delta_Tcmb(freq0*1e9)
     tsz_fac_freq1 = compton_y_to_delta_Tcmb(freq1*1e9)
@@ -201,7 +201,7 @@ def get_cl_tsz(freq1, freq2, freq0 = 150, fg_model = 'george15'):
 def get_cl_radio(freq1, freq2, freq0 = 150, fg_model = 'george15', spec_index_rg = -0.9):
 
     if fg_model:
-        el, cl_rg_freq0 = get_foreground_power_george_2015('RG', freq1 = freq0, freq2 = freq0)
+        el, cl_rg_freq0 = get_foreground_power_spt('RG', freq1 = freq0, freq2 = freq0)
         el_norm = 3000
 
     #conert to Dls

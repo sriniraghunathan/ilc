@@ -1,6 +1,6 @@
 import numpy as np, sys, os, scipy as sc, healpy as H, foregrounds as fg, misc
 ################################################################################################################
-def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol = 0, pol_frac_per_cent_dust = 0.02, pol_frac_per_cent_radio = 0.03, pol_frac_per_cent_tsz = 0., pol_frac_per_cent_ksz = 0.):
+def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol = 0, pol_frac_per_cent_dust = 0.02, pol_frac_per_cent_radio = 0.03, pol_frac_per_cent_tsz = 0., pol_frac_per_cent_ksz = 0., include_gal = 0):
 
     #ignore_fg = foreground terms that must be ignored
     possible_ignore_fg = ['cmb', 'tsz', 'ksz', 'radio', 'dust']
@@ -38,6 +38,10 @@ def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], 
             el, cl_radio = fg.get_cl_radio(freq1, freq2, freq0 = param_dict['freq0'], fg_model = param_dict['fg_model'], spec_index_rg = param_dict['spec_index_rg'])
             if pol:
                 cl_radio = cl_radio * pol_frac_per_cent_radio**2.
+
+            if include_gal: #get galactic dust and sync
+                el, cl_gal_dust = fg.get_cl_galactic(param_dict, freq1, freq2, freq0 = param_dict['freq0'], fg_model = param_dict['fg_model'], spec_index_rg = param_dict['spec_index_rg'])
+
 
             cl = np.copy( cl_ori )
             if 'cmb' not in ignore_fg:

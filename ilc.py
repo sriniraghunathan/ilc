@@ -1,6 +1,5 @@
 import numpy as np, sys, os, scipy as sc, healpy as H, foregrounds as fg, misc
 ################################################################################################################
-
 def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol = 0, pol_frac_per_cent_dust = 0.02, pol_frac_per_cent_radio = 0.03, pol_frac_per_cent_tsz = 0., pol_frac_per_cent_ksz = 0.):
 
     #ignore_fg = foreground terms that must be ignored
@@ -10,8 +9,8 @@ def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], 
             print( '\n\t Alert: Elements of ignore_fg should be one of the following: %s\n\n' %(np.array2string(np.asarray(possible_ignore_fg))) )
             sys.exit()
 
-    el, cl_cmb = fg.get_foreground_power_george_2015('CMB', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
-    el, cl_ksz = fg.get_foreground_power_george_2015('kSZ', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
+    el, cl_cmb = fg.get_foreground_power_spt('CMB', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
+    el, cl_ksz = fg.get_foreground_power_spt('kSZ', freq1 = param_dict['freq0'], freq2 = param_dict['freq0'])
     if pol:
         cl_ksz = cl_ksz * pol_frac_per_cent_ksz**2.
 
@@ -125,11 +124,11 @@ def residual_power(param_dict, freqarr, el, cl_dic, final_comp = 'cmb', freqcali
 
     '''
     if final_comp == 'CMB':
-        el, cl_ini = fg.get_foreground_power_george_2015('CMB', freq1 = param_dict['freq0'])
+        el, cl_ini = fg.get_foreground_power_spt('CMB', freq1 = param_dict['freq0'])
     elif final_comp == 'kSZ':
-        el, cl_ini = fg.get_foreground_power_george_2015('kSZ', freq1 = param_dict['freq0'])
+        el, cl_ini = fg.get_foreground_power_spt('kSZ', freq1 = param_dict['freq0'])
     elif final_comp == 'tSZ' or final_comp == 'comptony':
-        el, cl_ini = fg.get_foreground_power_george_2015('tSZ', freq1 = param_dict['freq0'])
+        el, cl_ini = fg.get_foreground_power_spt('tSZ', freq1 = param_dict['freq0'])
         if final_comp == 'comptony':
             freqscale_fac = compton_y_to_delta_Tcmb(param_dict['freq0'] * 1e9)
             cl_ini = cl_ini/freqscale_fac

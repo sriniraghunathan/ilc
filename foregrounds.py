@@ -3,7 +3,7 @@ import numpy as np, sys, os, scipy as sc
 h, k_B, c=6.626e-34,1.38e-23, 3e8
 ################################################################################################################
 
-def get_foreground_power_george_2015(component, freq1=150, freq2=None, units='uk', lmax = None):
+def get_foreground_power_spt(component, freq1=150, freq2=None, units='uk', lmax = None):
     """
     Foreground powers from George et al. 2015 results.
 

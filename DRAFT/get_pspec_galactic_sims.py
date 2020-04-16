@@ -34,10 +34,8 @@ import healpy as H, numpy as np, glob, sys, os
 local = 1
 if str(os.getcwd()).find('sri')>-1: local = 0
 
-log_file = 'tmp/pspec.txt'
-lf = open(log_file, 'w'); lf.close()
 
-dust_or_sync = 'sync' ##'dust'
+dust_or_sync = sys.argv[1] ##'sync' ##'dust'
 lmax = 5200
 nuarr = [20, 27, 39, 93, 145, 225, 278]
 verbose = 0
@@ -45,6 +43,9 @@ nside = 2048
 
 #lmax = 2000
 #nside = 1024
+
+log_file = 'tmp/pspec_%s.txt' %(dust_or_sync)
+lf = open(log_file, 'w'); lf.close()
 
 if local:
     sim_folder = 'galactic/CUmilta/ampmod_maps/'
@@ -70,9 +71,11 @@ if not local:
         lf = open(log_file,'a'); lf.writelines('%s\n' %(logline));lf.close()
         print(logline)
 
-        currmap = H.read_map(fname, verbose = 0)
+        currmap = H.read_map(fname, verbose = 0, field = (0,1,2))
         if H.get_nside(currmap) != nside:
             currmap = H.ud_grade(currmap, nside_out = nside)
+
+        ##from IPython import embed; embed()
 
         map_dic[nu] = currmap
 

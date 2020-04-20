@@ -143,7 +143,7 @@ def compton_y_to_delta_Tcmb(freq1, freq2 = None, Tcmb = 2.73):
 
 def get_cl_dust(freq1, freq2, fg_model = 'george15', freq0 = 150, spec_index_dg_po = 1.505 - 0.077, spec_index_dg_clus = 2.51-0.2, Tcib = 20.):
 
-    if fg_model:
+    if fg_model == 'george15':
         el, cl_dg_po_freq0 = get_foreground_power_spt('DG-Po', freq1 = freq0, freq2 = freq0)
         el, cl_dg_clus_freq0 = get_foreground_power_spt('DG-Cl', freq1 = freq0, freq2 = freq0)
         el_norm = 3000
@@ -183,7 +183,7 @@ def get_cl_dust(freq1, freq2, fg_model = 'george15', freq0 = 150, spec_index_dg_
 
 def get_cl_tsz(freq1, freq2, freq0 = 150, fg_model = 'george15'):
 
-    if fg_model:
+    if fg_model == 'george15':
         el, cl_tsz_freq0 = get_foreground_power_spt('DG-Po', freq1 = freq0, freq2 = freq0)
 
     tsz_fac_freq0 = compton_y_to_delta_Tcmb(freq0*1e9)
@@ -200,7 +200,7 @@ def get_cl_tsz(freq1, freq2, freq0 = 150, fg_model = 'george15'):
 
 def get_cl_radio(freq1, freq2, freq0 = 150, fg_model = 'george15', spec_index_rg = -0.9):
 
-    if fg_model:
+    if fg_model == 'george15':
         el, cl_rg_freq0 = get_foreground_power_spt('RG', freq1 = freq0, freq2 = freq0)
         el_norm = 3000
 
@@ -220,3 +220,35 @@ def get_cl_radio(freq1, freq2, freq0 = 150, fg_model = 'george15', spec_index_rg
     cl_rg[np.isnan(cl_rg)] = 0.
 
     return el, cl_rg
+
+def get_cl_galactic(param_dict, component, freq1, freq2, bl1 = None, bl2 = None, pol = 1, which_gal_mask = 0):
+
+    #fix: pol not working yet
+
+    assert component in ['dust', 'sync']
+
+    try:
+        which_gal_mask = param_dict['which_gal_mask']
+    except:
+        pass
+
+    if component == 'dust':
+        cl_gal_dic_fname = param_dict['cl_gal_dic_dust_fname']
+    elif component == 'sync':
+        cl_gal_dic_fname = param_dict['cl_gal_dic_sync_fname']
+
+    cl_gal_dic = np.load(cl_gal_dic_fname, allow_pickle = 1, encoding = 'latin1').item()['cl_dic'][which_gal_mask]
+
+    try:
+        cl_gal = cl_gal_dic[ (freq1, freq2) ]
+    except:
+        cl_gal = cl_gal_dic[ (freq2, freq1) ]
+
+    if bl1 is not None:
+        cl_gal /= bl1
+    if bl2 is not None:
+        cl_gal /= bl2
+
+    el = np.arange( len(cl_gal) )
+
+    return el, cl_gal

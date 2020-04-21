@@ -221,9 +221,12 @@ def get_cl_radio(freq1, freq2, freq0 = 150, fg_model = 'george15', spec_index_rg
 
     return el, cl_rg
 
-def get_cl_galactic(param_dict, component, freq1, freq2, bl1 = None, bl2 = None, pol = 1, which_gal_mask = 0):
+def get_cl_galactic(param_dict, component, freq1, freq2, which_spec,  which_gal_mask = 0, bl_dic = None, el = None):
 
     #fix: pol not working yet
+
+    #https://healpy.readthedocs.io/en/1.5.0/generated/healpy.sphtfunc.anafast.html#healpy.sphtfunc.anafast
+    spec_inds_dic = { 'TT':0, 'EE':1, 'BB':2, 'TE':3, 'EB':4, 'TB':5} #py2
 
     assert component in ['dust', 'sync']
 
@@ -244,11 +247,35 @@ def get_cl_galactic(param_dict, component, freq1, freq2, bl1 = None, bl2 = None,
     except:
         cl_gal = cl_gal_dic[ (freq2, freq1) ]
 
-    if bl1 is not None:
-        cl_gal /= bl1
-    if bl2 is not None:
-        cl_gal /= bl2
+    #pick the requested spectra: TT, EE, BB, TE, EB, TB.
+    spec_ind = spec_inds_dic[which_spec]
 
-    el = np.arange( len(cl_gal) )
+    #fix me
+    if np.ndim(cl_gal) == 1: #TT-only. Pol will fail.
+        cl_gal = np.asarray( [cl_gal] )
 
-    return el, cl_gal
+    try:
+        cl_gal = cl_gal[spec_ind]
+    except:
+        cl_gal = np.zeros( len(cl_gal[0]) )
+
+    el_gal = np.arange( len(cl_gal) )
+
+    if bl_dic is not None:
+        bl1 = bl_dic[freq1]
+        bl2 = bl_dic[freq2]
+
+        if len(bl1) != len(cl_gal): #adjust array lengths first
+            el_tmp = np.arange( len(bl1) )
+            cl_gal = np.interp(el_tmp, el_gal, cl_gal, left = 0., right = 0.)
+            el_gal = np.copy( el_tmp )
+
+        cl_gal = cl_gal / (bl1 * bl2)
+
+    if el is not None:
+        cl_gal = np.interp(el, el_gal, cl_gal, left = 0., right = 0.)
+        el_gal = np.copy( el )
+
+    ##print(which_spec, cl_gal[:10], freq1, freq2)
+
+    return el_gal, cl_gal

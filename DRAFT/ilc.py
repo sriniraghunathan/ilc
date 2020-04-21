@@ -1,6 +1,7 @@
 import numpy as np, sys, os, scipy as sc, healpy as H, foregrounds as fg, misc
+from pylab import *
 ################################################################################################################
-def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], pol = 0, pol_frac_per_cent_dust = 0.02, pol_frac_per_cent_radio = 0.03, pol_frac_per_cent_tsz = 0., pol_frac_per_cent_ksz = 0., include_gal = 0):
+def get_analytic_covariance(param_dict, freqarr, nl_dic = None, bl_dic = None, ignore_fg = [], pol = 0, pol_frac_per_cent_dust = 0.02, pol_frac_per_cent_radio = 0.03, pol_frac_per_cent_tsz = 0., pol_frac_per_cent_ksz = 0., include_gal = 0):
 
     #ignore_fg = foreground terms that must be ignored
     possible_ignore_fg = ['cmb', 'tsz', 'ksz', 'radio', 'dust']
@@ -39,10 +40,6 @@ def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], 
             if pol:
                 cl_radio = cl_radio * pol_frac_per_cent_radio**2.
 
-            if include_gal: #get galactic dust and sync
-                el, cl_gal_dust = fg.get_cl_galactic(param_dict, freq1, freq2, freq0 = param_dict['freq0'], fg_model = param_dict['fg_model'], spec_index_rg = param_dict['spec_index_rg'])
-
-
             cl = np.copy( cl_ori )
             if 'cmb' not in ignore_fg:
                 cl = cl + np.copy(cl_cmb)
@@ -58,6 +55,28 @@ def get_analytic_covariance(param_dict, freqarr, nl_dic = None, ignore_fg = [], 
             if 'dust' not in ignore_fg:
                 #print('dust')
                 cl = cl + cl_dg_po + cl_dg_clus
+
+            if include_gal and not pol: #get galactic dust and sync
+
+                which_spec = 'TT'
+                if pol: which_spec = 'EE'
+
+                el, cl_gal_dust = fg.get_cl_galactic(param_dict, 'dust', freq1, freq2, which_spec, bl_dic = bl_dic, el = el)
+                el, cl_gal_sync = fg.get_cl_galactic(param_dict, 'sync', freq1, freq2, which_spec, bl_dic = bl_dic, el = el)
+                
+                '''
+                loglog(cl_dg_po + cl_dg_clus, label = r'EG: %s, %s' %(freq1, freq2));
+                loglog(cl_gal_dust, label = r'Dust: %s, %s' %(freq1, freq2));title(r'%s' %(param_dict['which_gal_mask']))
+                loglog(cl_gal_sync, label = r'Sync: %s, %s' %(freq1, freq2));title(r'%s' %(param_dict['which_gal_mask']))
+                cl = cl + cl_gal_dust + cl_gal_sync
+                #loglog(cl);
+                legend(loc = 1)
+                ylim(1e-5, 1e3);#show();sys.exit()
+                xlim(20,param_dict['lmax']);ylim(1e-8,1e6);
+                '''
+                
+                cl = cl + cl_gal_dust
+                cl = cl + cl_gal_sync
 
             #make sure cl start from el=0 rather than el=10 which is the default for SPT G15 results
             lmin = min(el)

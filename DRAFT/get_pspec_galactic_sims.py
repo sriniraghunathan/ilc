@@ -36,42 +36,58 @@ if str(os.getcwd()).find('sri')>-1: local = 0
 
 
 dust_or_sync = sys.argv[1] ##'sync' ##'dust'
-lmax = 5200
-nuarr = [20, 27, 39, 93, 145, 225, 278]
+t_only = 0
+lmax = 3500
+#nuarr = [20, 27, 39, 93, 145, 225, 278]
+#nuarr = [27, 39, 93, 145, 225, 278]
+nuarr = [93, 145, 225, 278]
 verbose = 0
 nside = 2048
 
-#lmax = 2000
-#nside = 1024
+testing = 1
+if testing and local:
+    lmax = 2000
+    nside = 512
+    nuarr = [ 145 ]#, 145]
 
 log_file = 'tmp/pspec_%s.txt' %(dust_or_sync)
 lf = open(log_file, 'w'); lf.close()
 
 if local:
-    sim_folder = 'galactic/CUmilta/ampmod_maps/'
+    sim_folder = '/Users/sraghunathan/Research/SPTPol/analysis/git/ilc/galactic/CUmilta/ampmod_maps/'
 else:    
     sim_folder = '/data48/sri/git/ilc/S4_march_2020/sims_from_others/CUmilta/ampmod_maps/'
 
-opfname = '%s/cls_gal_%s.npy' %(sim_folder, dust_or_sync)
+#opfname = '%s/cls_gal_%s_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
+opfname = '%s/cls_galactic_sims_%s_CUmilta_20200319_maskplanck_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
+if t_only:
+    opfname = opfname.replace('.npy', '_TTonly.npy')
 
-if not local:
+if testing or not local:
 
-    totthreads = 4
+    totthreads = 2
     os.putenv('OMP_NUM_THREADS',str(totthreads))
 
     #get filename prefix
     fname_pref = 'Ampmod_map_%s_lmax_5200_freq_xxx_rel0000.fits' %(dust_or_sync)
+
+    logline = '\n'
+    lf = open(log_file,'a'); lf.writelines('%s\n' %(logline));lf.close()
+    print(logline)
 
     map_dic = {}
     for nucntr, nu in enumerate( nuarr ):
         fname = '%s/%s' %(sim_folder, fname_pref)
         fname = fname.replace('xxx', '%03d' %(nu))
 
-        logline = '\n\t%s\n' %fname
+        logline = '\t%s\n' %fname
         lf = open(log_file,'a'); lf.writelines('%s\n' %(logline));lf.close()
         print(logline)
 
-        currmap = H.read_map(fname, verbose = 0, field = (0,1,2))
+        if t_only:
+            currmap = H.read_map(fname, verbose = 0)
+        else:
+            currmap = H.read_map(fname, verbose = 0, field = (0,1,2))
         if H.get_nside(currmap) != nside:
             currmap = H.ud_grade(currmap, nside_out = nside)
 
@@ -103,11 +119,12 @@ if not local:
         
     tot_masks = len(planck_mask)
 
-    logline = '\n\tget masks now\n'
+    logline = '\tget masks now\n'
     lf = open(log_file,'a'); lf.writelines('%s\n' %(logline));lf.close()
     print(logline)
 
     mask_arr = []
+
     for mask_iter in range(tot_masks):
         mask = np.copy(planck_mask[mask_iter])
 
@@ -118,20 +135,74 @@ if not local:
         mask[mask<thresh] = 0.
         mask[mask!=0] = 1.
 
-        mask_arr.append( mask )   
+        mask_arr.append( mask )
 
+    #first full sky
+    npix = H.nside2npix( nside )
+    no_mask = np.ones( npix )
+    #mask_arr = np.concatenate(([no_mask], mask_arr))
+
+    mask_arr.append( no_mask )
     mask_arr = np.asarray(mask_arr)
+
+
+    tot_masks = len(mask_arr)
+
     mask_arr = mask_arr * cmbs4_hit_map
     fsky_arr = np.mean(mask_arr, axis = 1)
 
-    if (0):
-        #from IPython import embed; embed()
-        H.mollview(mask_arr[0], sub = (1,3,1)); H.mollview(mask_arr[1], sub = (1,3,2)); H.mollview(mask_arr[2], sub = (1,3,3)); show()
+    logline = '\t\t all masks obtained\n'
+    lf = open(log_file,'a'); lf.writelines('%s\n' %(logline));lf.close()
+    print(logline)
+
+    if testing:
+        from IPython import embed; embed()
+        from pylab import *
+
+        from matplotlib import rc;rc('text', usetex=True);rc('font', weight='bold');matplotlib.rcParams['text.latex.preamble'] = [r'\boldmath']
+        rcParams['figure.dpi'] = 150
+        rcParams["figure.facecolor"] = 'white'
+        rcParams['font.family'] = 'serif'
+
+        rc('text.latex',preamble=r'\usepackage{/Users/sraghunathan/.configs/apjfonts}')
+
+        clf()
+        for mask_iter in range(tot_masks):
+            fsky = np.mean(mask_arr[mask_iter])
+            H.mollview(mask_arr[mask_iter], sub = (1, tot_masks,mask_iter+1), title = r'Mask: %s: f$_{\rm sky} = %.2f$' %(mask_iter, fsky), cbar = 0); 
+        show()
+
+        clf()
+        vmin, vmax = None, None ##-100., 100. #None, None
+        for mask_iter in range(tot_masks):
+            fsky = np.mean(mask_arr[mask_iter])
+            H.mollview(currmap * mask_arr[mask_iter], sub = (1,tot_masks,mask_iter+1), title_fontsize = 6, unit = r'$\mu K$', title = r'Dust @ 145 GHz + Mask %s: f$_{\rm sky} = %.2f$' %(mask_iter, fsky), min = vmin, max = vmax); 
+        show(); #sys.exit()
+
+        clf()
+        cmbs4_hit_map_flist = glob.glob('%s/high_cadence_hits_*_cosecant_modulation.fits' %(sim_folder))
+        for cntr, cmbs4_hit_map_fname in enumerate( sorted( cmbs4_hit_map_flist ) ):
+            fname_str = cmbs4_hit_map_fname.split('/')[-1].replace('.fits', '').replace('_', '\_')
+            cmbs4_hit_map = H.read_map(cmbs4_hit_map_fname, verbose = verbose)
+            cmbs4_hit_map_dummy = np.copy(cmbs4_hit_map)
+            cmbs4_hit_map_dummy[cmbs4_hit_map_dummy!=0] = 1.
+            fsky = np.mean(cmbs4_hit_map_dummy)
+            H.mollview(cmbs4_hit_map, sub = (1,3,cntr+1), title = r'%s: f$_{\rm sky} = %.2f$' %(fname_str, fsky), title_fontsize = 6); 
+        show()
+
+
+    logline = '\tget power spectra now\n'
+    lf = open(log_file,'a'); lf.writelines('%s\n' %(logline));lf.close()
+    print(logline)
     
-    resdic = {}
-    resdic['fsky_arr'] = fsky_arr
-    resdic['lmax'] = lmax
-    resdic['cl_dic'] = {}
+    if not os.path.exists(opfname):
+        resdic = {}
+        resdic['fsky_arr'] = fsky_arr
+        resdic['lmax'] = lmax
+        resdic['cl_dic'] = {}
+    else:
+        resdic = np.load(opfname, allow_pickle = 1).item()
+
     for mask_iter in range(tot_masks):
         resdic['cl_dic'][mask_iter] = {}
         for nu1 in nuarr:
@@ -139,9 +210,15 @@ if not local:
 
                 print(nu1, nu2)
 
-                logline = '\n\tMask = %s: (%s,%s)\n' %(mask_iter, nu1, nu2)
+                logline = '\tMask = %s: (%s,%s)\n' %(mask_iter, nu1, nu2)
                 lf = open(log_file,'a'); lf.writelines('%s\n' %(logline));lf.close()
                 print(logline)
+
+                if (nu2, nu1) in resdic['cl_dic'][mask_iter]: 
+                    logline = '\t\talready complete\n'
+                    lf = open(log_file,'a'); lf.writelines('%s\n' %(logline));lf.close()
+                    print(logline)
+                    continue
 
                 map1, map2 = map_dic[nu1], map_dic[nu2]
 
@@ -150,12 +227,18 @@ if not local:
                 map1 = map1 * curr_mask
                 map2 = map2 * curr_mask
 
-                if (nu2, nu1) in resdic['cl_dic'][mask_iter]: continue
+                if testing:
+                    H.mollview(map1, sub = (1,2,1)); H.mollview(map1, sub = (1,2,2)); show()
+
+
                 curr_cl = H.anafast(map1, map2, lmax = lmax)
                 curr_cl /= fsky
                 resdic['cl_dic'][mask_iter][(nu1, nu2)] = curr_cl
 
-    np.save(opfname, resdic)
+                if not testing:
+                    np.save(opfname, resdic)
+    if testing:
+        from IPython import embed; embed()
     sys.exit()
 
 

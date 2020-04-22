@@ -29,29 +29,43 @@ def healpix_rotate_coords(hmap, coord):
 ############################################################
 ############################################################
 
-import healpy as H, numpy as np, glob, sys, os
+import healpy as H, numpy as np, glob, sys, os, argparse
 
 local = 1
 if str(os.getcwd()).find('sri')>-1: local = 0
 
 
-dust_or_sync = sys.argv[1] ##'sync' ##'dust'
-t_only = 0
-lmax = 3500
+#dust_or_sync = sys.argv[1] ##'sync' ##'dust'
+
+parser = argparse.ArgumentParser(description='')
+parser.add_argument('-dust_or_sync', dest='dust_or_sync', action='store', help='dust_or_sync', type=str, required=True)
+parser.add_argument('-which_mask', dest='which_mask', action='store', help='which_mask', type=int, default=-1)
+parser.add_argument('-lmax', dest='lmax', action='store', help='lmax', type=int, default=3500)
+parser.add_argument('-nuarr', dest='nuarr', action='store', type=int, nargs='+', default= [27, 39, 93, 145, 225, 278], help='nuarr')
+parser.add_argument('-t_only', dest='t_only', action='store', help='t_only', type=int, default=0)
+parser.add_argument('-nside', dest='nside', action='store', help='nside', type=int, default=2048)
+parser.add_argument('-verbose', dest='verbose', action='store', help='verbose', type=int, default=0)
 #nuarr = [20, 27, 39, 93, 145, 225, 278]
 #nuarr = [27, 39, 93, 145, 225, 278]
-nuarr = [93, 145, 225, 278]
-verbose = 0
-nside = 2048
+
+
+args = parser.parse_args()
+args_keys = args.__dict__
+for kargs in args_keys:
+    param_value = args_keys[kargs]
+    if isinstance(param_value, str):
+        cmd = '%s = "%s"' %(kargs, param_value)
+    else:
+        cmd = '%s = %s' %(kargs, param_value)
+    exec(cmd)
+
+
 
 testing = 1
 if testing and local:
     lmax = 2000
     nside = 512
     nuarr = [ 145 ]#, 145]
-
-log_file = 'tmp/pspec_%s.txt' %(dust_or_sync)
-lf = open(log_file, 'w'); lf.close()
 
 if local:
     sim_folder = '/Users/sraghunathan/Research/SPTPol/analysis/git/ilc/galactic/CUmilta/ampmod_maps/'
@@ -60,8 +74,16 @@ else:
 
 #opfname = '%s/cls_gal_%s_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
 opfname = '%s/cls_galactic_sims_%s_CUmilta_20200319_maskplanck_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
+log_file = 'tmp/pspec_%s.txt' %(dust_or_sync)
+
 if t_only:
     opfname = opfname.replace('.npy', '_TTonly.npy')
+
+if which_mask != -1:
+    log_file = log_file.replace('.txt', '_mask%s.txt' %(which_mask))     
+    opfname = opfname.replace('.npy', '_mask%s.npy' %(which_mask))    
+
+lf = open(log_file, 'w'); lf.close()
 
 if testing or not local:
 
@@ -143,8 +165,11 @@ if testing or not local:
     #mask_arr = np.concatenate(([no_mask], mask_arr))
 
     mask_arr.append( no_mask )
-    mask_arr = np.asarray(mask_arr)
 
+    if which_mask != -1:
+        mask_arr = [mask_arr[which_mask]]
+
+    mask_arr = np.asarray(mask_arr)
 
     tot_masks = len(mask_arr)
 

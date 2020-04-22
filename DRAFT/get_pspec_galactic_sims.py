@@ -70,7 +70,7 @@ if testing and local:
 if local:
     sim_folder = '/Users/sraghunathan/Research/SPTPol/analysis/git/ilc/galactic/CUmilta/ampmod_maps/'
 else:    
-    sim_folder = '/data48/sri/git/ilc/S4_march_2020/sims_from_others/CUmilta/ampmod_maps/'
+    sim_folder = 'S4_march_2020/sims_from_others/CUmilta/ampmod_maps/'
 
 #opfname = '%s/cls_gal_%s_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
 opfname = '%s/cls_galactic_sims_%s_CUmilta_20200319_maskplanck_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)

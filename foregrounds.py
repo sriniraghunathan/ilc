@@ -184,7 +184,7 @@ def get_cl_dust(freq1, freq2, fg_model = 'george15', freq0 = 150, spec_index_dg_
 def get_cl_tsz(freq1, freq2, freq0 = 150, fg_model = 'george15'):
 
     if fg_model == 'george15':
-        el, cl_tsz_freq0 = get_foreground_power_spt('DG-Po', freq1 = freq0, freq2 = freq0)
+        el, cl_tsz_freq0 = get_foreground_power_spt('tSZ', freq1 = freq0, freq2 = freq0)
 
     tsz_fac_freq0 = compton_y_to_delta_Tcmb(freq0*1e9)
     tsz_fac_freq1 = compton_y_to_delta_Tcmb(freq1*1e9)

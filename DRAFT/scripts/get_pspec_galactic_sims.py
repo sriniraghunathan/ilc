@@ -45,6 +45,7 @@ parser.add_argument('-nuarr', dest='nuarr', action='store', type=int, nargs='+',
 parser.add_argument('-t_only', dest='t_only', action='store', help='t_only', type=int, default=0)
 parser.add_argument('-nside', dest='nside', action='store', help='nside', type=int, default=2048)#4096)
 parser.add_argument('-verbose', dest='verbose', action='store', help='verbose', type=int, default=0)
+parser.add_argument('-zonca_sims', dest='zonca_sims', action='store', help='zonca_sims', type=int, default=1) #S4 sims by Andrea Zonca
 #nuarr = [20, 27, 39, 93, 145, 225, 278]
 #nuarr = [27, 39, 93, 145, 225, 278]
 
@@ -59,6 +60,15 @@ for kargs in args_keys:
         cmd = '%s = %s' %(kargs, param_value)
     exec(cmd)
 
+name_dic = {}
+if zonca_sims:
+    name_dic[20] = 'ULFL1'
+    name_dic[27] = 'LFL1'
+    name_dic[39] = 'LFL1'
+    name_dic[93] = 'MFL1'
+    name_dic[145] = 'MFL2'
+    name_dic[225] = 'HFL1'
+    name_dic[278] = 'HFL2'
 
 
 testing = 0
@@ -67,10 +77,22 @@ if testing and local:
     nside = 512
     nuarr = [ 145 ]#, 145]
 
-if local:
-    sim_folder = '/Users/sraghunathan/Research/SPTPol/analysis/git/ilc/galactic/CUmilta/ampmod_maps/'
-else:    
-    sim_folder = 'S4_march_2020/sims_from_others/CUmilta/ampmod_maps/'
+if not zonca_sims:
+    if local:
+        sim_folder = '/Users/sraghunathan/Research/SPTPol/analysis/git/ilc/galactic/CUmilta/ampmod_maps/'
+    else:
+        sim_folder = 'S4_march_2020/sims_from_others/CUmilta/ampmod_maps/'
+else:
+    if local:
+        sim_folder = '/Volumes/data_PHD_WD_babbloo/s4/cmbs4/map_based_simulations/202002_foregrounds_extragalactic_cmb_tophat/4096/'
+    else:
+        sim_folder = '/u/home/s/srinirag/project-nwhiteho/cmbs4/map_based_simulations/202002_foregrounds_extragalactic_cmb_tophat/4096/'
+
+    if dust_or_sync == 'dust':
+        sim_folder = '%s/dust/' %(sim_folder)
+    elif dust_or_sync == 'sync':
+        sim_folder = '%s/synchrotron/' %(sim_folder)
+
 
 #opfname = '%s/cls_gal_%s_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
 opfname = '%s/cls_galactic_sims_%s_CUmilta_20200319_maskplanck_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
@@ -91,7 +113,11 @@ if testing or not local:
     os.putenv('OMP_NUM_THREADS',str(totthreads))
 
     #get filename prefix
-    fname_pref = 'Ampmod_map_%s_lmax_5200_freq_xxx_rel0000.fits' %(dust_or_sync)
+    if not zonca_sims:
+        fname_pref = 'Ampmod_map_%s_lmax_5200_freq_xxx_rel0000.fits' %(dust_or_sync)
+    else:
+        fname_pref = 'cmbs4_%s_uKCMB_LAT-xxx_nside4096_0000.fits' %(dust_or_sync)
+
 
     logline = '\n'
     lf = open(log_file,'a'); lf.writelines('%s\n' %(logline));lf.close()
@@ -100,7 +126,13 @@ if testing or not local:
     map_dic = {}
     for nucntr, nu in enumerate( nuarr ):
         fname = '%s/%s' %(sim_folder, fname_pref)
-        fname = fname.replace('xxx', '%03d' %(nu))
+        if not zonca_sims:
+            fname = fname.replace('xxx', '%03d' %(nu))
+        else:
+            fname = fname.replace('xxx', name_dic[nu])
+
+        print(fname)
+        sys.exit()
 
         logline = '\t%s\n' %fname
         lf = open(log_file,'a'); lf.writelines('%s\n' %(logline));lf.close()

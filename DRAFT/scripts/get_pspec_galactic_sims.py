@@ -75,13 +75,25 @@ testing = 0
 if testing and local:
     lmax = 2000
     nside = 512
-    nuarr = [ 145 ]#, 145]
+    ##nuarr = [ 145 ]#, 145]
+    nuarr = [ 93 ]
+
+if not local:
+    mask_folder = '/u/home/s/srinirag/project-nwhiteho/cmbs4/masks/planck/'
+    cmbs4_footprint_folder = '/u/home/s/srinirag/project-nwhiteho/cmbs4/footprints/'
+else:
+    mask_folder = '/Volumes/data_PHD_WD_babbloo/s4/cmbs4/masks/planck/'
+    cmbs4_footprint_folder = '/Volumes/data_PHD_WD_babbloo/s4/cmbs4/footprints/'
 
 if not zonca_sims:
     if local:
         sim_folder = '/Users/sraghunathan/Research/SPTPol/analysis/git/ilc/galactic/CUmilta/ampmod_maps/'
     else:
         sim_folder = 'S4_march_2020/sims_from_others/CUmilta/ampmod_maps/'
+
+    #opfname = '%s/cls_gal_%s_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
+    opfname = '%s/cls_galactic_sims_%s_CUmilta_20200319_maskplanck_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
+
 else:
     if local:
         sim_folder = '/Volumes/data_PHD_WD_babbloo/s4/cmbs4/map_based_simulations/202002_foregrounds_extragalactic_cmb_tophat/4096/'
@@ -93,9 +105,11 @@ else:
     elif dust_or_sync == 'sync':
         sim_folder = '%s/synchrotron/' %(sim_folder)
 
+    sim_folder = '%s/0000/' %(sim_folder)
 
-#opfname = '%s/cls_gal_%s_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
-opfname = '%s/cls_galactic_sims_%s_CUmilta_20200319_maskplanck_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
+    opfname = '%s/cls_galactic_sims_%s_maskplanck_nside%s_lmax%s.npy' %(sim_folder, dust_or_sync, nside, lmax)
+
+if not os.path.exists('tmp/'): os.system('mkdir tmp/')
 log_file = 'tmp/pspec_%s.txt' %(dust_or_sync)
 
 if t_only:
@@ -117,6 +131,7 @@ if testing or not local:
         fname_pref = 'Ampmod_map_%s_lmax_5200_freq_xxx_rel0000.fits' %(dust_or_sync)
     else:
         fname_pref = 'cmbs4_%s_uKCMB_LAT-xxx_nside4096_0000.fits' %(dust_or_sync)
+        fname_pref = fname_pref.replace('sync', 'synchrotron')
 
 
     logline = '\n'
@@ -130,9 +145,6 @@ if testing or not local:
             fname = fname.replace('xxx', '%03d' %(nu))
         else:
             fname = fname.replace('xxx', name_dic[nu])
-
-        print(fname)
-        sys.exit()
 
         logline = '\t%s\n' %fname
         lf = open(log_file,'a'); lf.writelines('%s\n' %(logline));lf.close()
@@ -151,7 +163,7 @@ if testing or not local:
 
     #now get masks
     if (1):
-        planck_mask_fname = '%s/HFI_Mask_GalPlane-apo0_2048_R2.00.fits' %(sim_folder)
+        planck_mask_fname = '%s/HFI_Mask_GalPlane-apo0_2048_R2.00.fits' %(mask_folder)
         planck_mask = H.read_map(planck_mask_fname, verbose = verbose, field = (1,2,3))
         if H.get_nside(planck_mask) != nside:
             planck_mask = H.ud_grade(planck_mask, nside_out = nside)
@@ -164,7 +176,7 @@ if testing or not local:
             planck_mask[mask_iter][planck_mask[mask_iter]!=0] = 1.
         '''
 
-        cmbs4_hit_map_fname = '%s/high_cadence_hits_el30_cosecant_modulation.fits' %(sim_folder)
+        cmbs4_hit_map_fname = '%s/high_cadence_hits_el30_cosecant_modulation.fits' %(cmbs4_footprint_folder)
         cmbs4_hit_map = H.read_map(cmbs4_hit_map_fname, verbose = verbose)
         cmbs4_hit_map[cmbs4_hit_map!=0] = 1.
         if H.get_nside(cmbs4_hit_map) != nside:
@@ -213,7 +225,7 @@ if testing or not local:
     print(logline)
 
     if testing:
-        from IPython import embed; embed()
+        #from IPython import embed; embed()
         from pylab import *
 
         from matplotlib import rc;rc('text', usetex=True);rc('font', weight='bold');matplotlib.rcParams['text.latex.preamble'] = [r'\boldmath']
@@ -227,17 +239,37 @@ if testing or not local:
         for mask_iter in range(tot_masks):
             fsky = np.mean(mask_arr[mask_iter])
             H.mollview(mask_arr[mask_iter], sub = (1, tot_masks,mask_iter+1), title = r'Mask: %s: f$_{\rm sky} = %.2f$' %(mask_iter, fsky), cbar = 0); 
-        show()
+        savefig('/Users/sraghunathan/Research/SPTPol/analysis/git/ilc/DRAFT/scripts/reports/galactic_sims/maps_masks/masks.pdf')
+        #show()
+
+        totiter = 1
+        for iter in range(totiter):
+            clf()
+            if iter == 0:
+                if not zonca_sims:
+                    vmin, vmax = -80., 80. #None, None
+                else:
+                    if dust_or_sync == 'dust':
+                        vmin, vmax = 0., 400.
+                    else:
+                        vmin, vmax = None, None
+            else:
+                vmin, vmax = None, None ##-100., 100. #None, None
+            for mask_iter in range(tot_masks):
+                fsky = np.mean(mask_arr[mask_iter])
+                H.mollview(currmap[0] * mask_arr[mask_iter], sub = (1,tot_masks,mask_iter+1), title_fontsize = 6, unit = r'$\mu K$', title = r'%s @ 145 GHz + Mask %s: f$_{\rm sky} = %.2f$' %(dust_or_sync, mask_iter, fsky), min = vmin, max = vmax); 
+            
+            if iter == 0:
+                if zonca_sims:
+                    savefig('/Users/sraghunathan/Research/SPTPol/analysis/git/ilc/DRAFT/scripts/reports/galactic_sims/maps_masks/%s_%s.pdf' %(dust_or_sync, nu))
+                else:
+                    savefig('/Users/sraghunathan/Research/SPTPol/analysis/git/ilc/DRAFT/scripts/reports/galactic_sims/maps_masks/%s_%s_fixedcolourscale.pdf' %(dust_or_sync, nu))
+            else:
+                savefig('/Users/sraghunathan/Research/SPTPol/analysis/git/ilc/DRAFT/scripts/reports/galactic_sims/maps_masks/%s_%s_freecolourscale.pdf' %(dust_or_sync, nu))
+            #show(); #sys.exit()
 
         clf()
-        vmin, vmax = None, None ##-100., 100. #None, None
-        for mask_iter in range(tot_masks):
-            fsky = np.mean(mask_arr[mask_iter])
-            H.mollview(currmap * mask_arr[mask_iter], sub = (1,tot_masks,mask_iter+1), title_fontsize = 6, unit = r'$\mu K$', title = r'Dust @ 145 GHz + Mask %s: f$_{\rm sky} = %.2f$' %(mask_iter, fsky), min = vmin, max = vmax); 
-        show(); #sys.exit()
-
-        clf()
-        cmbs4_hit_map_flist = glob.glob('%s/high_cadence_hits_*_cosecant_modulation.fits' %(sim_folder))
+        cmbs4_hit_map_flist = glob.glob('%s/high_cadence_hits_*_cosecant_modulation.fits' %(cmbs4_footprint_folder))
         for cntr, cmbs4_hit_map_fname in enumerate( sorted( cmbs4_hit_map_flist ) ):
             fname_str = cmbs4_hit_map_fname.split('/')[-1].replace('.fits', '').replace('_', '\_')
             cmbs4_hit_map = H.read_map(cmbs4_hit_map_fname, verbose = verbose)
@@ -245,7 +277,9 @@ if testing or not local:
             cmbs4_hit_map_dummy[cmbs4_hit_map_dummy!=0] = 1.
             fsky = np.mean(cmbs4_hit_map_dummy)
             H.mollview(cmbs4_hit_map, sub = (1,3,cntr+1), title = r'%s: f$_{\rm sky} = %.2f$' %(fname_str, fsky), title_fontsize = 6); 
-        show()
+        savefig('/Users/sraghunathan/Research/SPTPol/analysis/git/ilc/DRAFT/scripts/reports/galactic_sims/maps_masks/S4_hitmaps.pdf')
+        #show()
+        sys.exit()
 
 
     logline = '\tget power spectra now\n'

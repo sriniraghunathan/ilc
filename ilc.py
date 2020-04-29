@@ -56,24 +56,25 @@ def get_analytic_covariance(param_dict, freqarr, nl_dic = None, bl_dic = None, i
                 #print('dust')
                 cl = cl + cl_dg_po + cl_dg_clus
 
-            if include_gal and not pol: #get galactic dust and sync
+            if include_gal:# and not pol: #get galactic dust and sync
 
                 which_spec = 'TT'
                 if pol: which_spec = 'EE'
 
                 el, cl_gal_dust = fg.get_cl_galactic(param_dict, 'dust', freq1, freq2, which_spec, bl_dic = bl_dic, el = el)
                 el, cl_gal_sync = fg.get_cl_galactic(param_dict, 'sync', freq1, freq2, which_spec, bl_dic = bl_dic, el = el)
-                
-                '''
-                loglog(cl_dg_po + cl_dg_clus, label = r'EG: %s, %s' %(freq1, freq2));
-                loglog(cl_gal_dust, label = r'Dust: %s, %s' %(freq1, freq2));title(r'%s' %(param_dict['which_gal_mask']))
-                loglog(cl_gal_sync, label = r'Sync: %s, %s' %(freq1, freq2));title(r'%s' %(param_dict['which_gal_mask']))
-                cl = cl + cl_gal_dust + cl_gal_sync
-                #loglog(cl);
-                legend(loc = 1)
-                ylim(1e-5, 1e3);#show();sys.exit()
-                xlim(20,param_dict['lmax']);ylim(1e-8,1e6);
-                '''
+
+                if (0):#not pol:
+
+                    loglog(cl_dg_po + cl_dg_clus, label = r'EG: %s, %s' %(freq1, freq2));
+                    loglog(cl_gal_dust, label = r'Dust: %s, %s' %(freq1, freq2));title(r'%s' %(param_dict['which_gal_mask']))
+                    loglog(cl_gal_sync, label = r'Sync: %s, %s' %(freq1, freq2));title(r'%s' %(param_dict['which_gal_mask']))
+                    #cl = cl + cl_gal_dust + cl_gal_sync
+                    #loglog(cl);
+                    legend(loc = 1)
+                    ylim(1e-5, 1e3);#show();sys.exit()
+                    xlim(20,param_dict['lmax']);ylim(1e-8,1e6);
+                    show();sys.exit()
                 
                 cl = cl + cl_gal_dust
                 cl = cl + cl_gal_sync
@@ -132,39 +133,46 @@ def create_clmat(freqarr, elcnt, cl_dic):
     return clmat
 
 ################################################################################################################
-def residual_power(param_dict, freqarr, el, cl_dic, final_comp = 'cmb', freqcalib_fac = None):
+def get_clinv(freqarr, elcnt, cl_dic):
+    clmat = np.mat( create_clmat(freqarr, elcnt, cl_dic) )
+    clinv = sc.linalg.pinv2(clmat)
+    #clinv = sc.linalg.inv(clmat)
+
+    return clinv
+
+################################################################################################################
+def residual_power(param_dict, freqarr, el, cl_dic, final_comp = 'cmb', freqcalib_fac = None, lmin = 0, return_weights = 0):
+
+    try:
+        lmin = param_dict['lmin']
+    except:
+        pass
 
     acap = get_acap(freqarr, final_comp = final_comp, freqcalib_fac = freqcalib_fac)
+    nc = len(freqarr)
 
     cl_residual = np.zeros( (len(el)) )
+    weightsarr = np.zeros( (nc, len( el ) ) )
     for elcnt, el in enumerate(el):
-        clmat = np.mat( create_clmat(freqarr, elcnt, cl_dic) )
-        clinv = sc.linalg.pinv2(clmat)
+        if el <= lmin: continue ## or el>=lmax: continue
+        clinv = get_clinv( freqarr, elcnt, cl_dic )
         
-        nr = 1.
+        nr = np.dot(clinv, acap)
         dr = np.dot( acap.T, np.dot(clinv, acap) )
-        cl_residual[elcnt] = np.asarray(nr/dr).squeeze()
 
-    '''
-    if final_comp == 'CMB':
-        el, cl_ini = fg.get_foreground_power_spt('CMB', freq1 = param_dict['freq0'])
-    elif final_comp == 'kSZ':
-        el, cl_ini = fg.get_foreground_power_spt('kSZ', freq1 = param_dict['freq0'])
-    elif final_comp == 'tSZ' or final_comp == 'comptony':
-        el, cl_ini = fg.get_foreground_power_spt('tSZ', freq1 = param_dict['freq0'])
-        if final_comp == 'comptony':
-            freqscale_fac = compton_y_to_delta_Tcmb(param_dict['freq0'] * 1e9)
-            cl_ini = cl_ini/freqscale_fac
+        #ILC residuals
+        cl_residual[elcnt] = np.asarray(1./dr).squeeze()
 
-    cl_ini = cl_ini[:len(cl_residual)]
-
-    cl_residual = cl_residual - cl_ini
-    '''
+        #weights
+        weightsarr[:, elcnt] = np.asarray(nr/dr).squeeze()
 
     cl_residual[np.isinf(cl_residual)] = 0.
     cl_residual[np.isnan(cl_residual)] = 0.
     
-    return cl_residual
+    if return_weights:
+        return cl_residual, weightsarr
+    else:
+        return cl_residual
 
 ################################################################################################################
 
@@ -272,7 +280,7 @@ def get_ilc_map(final_comp, el, map_dic, bl_dic, nside, lmax, cl_dic = None, nl_
 
 
     #get weights
-    weightsarr = get_multipole_weightsarr(final_comp, freqarr, el, cl_dic, lmin, freqcalib_fac, ignore_fg)
+    weightsarr = get_multipole_weightsarr(final_comp, freqarr, el, cl_dic, lmin, freqcalib_fac)#, ignore_fg)
     weightsarr_1d = np.copy(weightsarr)
 
     #convert weights to 2D if flat-sky
@@ -358,7 +366,7 @@ def apply_ilc_weightsarr(maparr, weightsarr, nside, lmax, full_sky = 0, verbose 
 
 ################################################################################################################
 
-def get_multipole_weightsarr(final_comp, freqarr, el, cl_dic, lmin, freqcalib_fac, ignore_fg):
+def get_multipole_weightsarr(final_comp, freqarr, el, cl_dic, lmin, freqcalib_fac):#, ignore_fg):
 
     acap = get_acap(freqarr, final_comp = final_comp, freqcalib_fac = freqcalib_fac)
 
@@ -369,8 +377,7 @@ def get_multipole_weightsarr(final_comp, freqarr, el, cl_dic, lmin, freqcalib_fa
         weightsarr = np.zeros( (nc, len( el ) ) )
         for elcnt, curr_el in enumerate( el ):
             if curr_el <= lmin: continue ## or el>=lmax: continue
-            clmat = np.mat( create_clmat(freqarr, elcnt, cl_dic) )
-            clinv = sc.linalg.pinv2(clmat)
+            clinv = get_clinv( freqarr, elcnt, cl_dic )
             
             nr = np.dot(clinv, acap)
             dr = np.dot( acap.T, np.dot(clinv, acap) )
@@ -387,9 +394,7 @@ def get_multipole_weightsarr(final_comp, freqarr, el, cl_dic, lmin, freqcalib_fa
             for elcnt2, curr_ly in enumerate( ly ):
                 curr_el = np.sqrt(curr_lx**2. + curr_ly**2.)
                 if curr_el <= lmin: continue ## or el>=lmax: continue
-            
-                clmat = np.mat( create_clmat(freqarr, elcnt, cl_dic) )
-                clinv = sc.linalg.pinv2(clmat)
+                clinv = get_clinv( freqarr, elcnt, cl_dic )
             
             nr = np.dot(clinv, acap)
             dr = np.dot( acap.T, np.dot(clinv, acap) )

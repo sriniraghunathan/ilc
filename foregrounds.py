@@ -48,10 +48,16 @@ def get_foreground_power_spt(component, freq1=150, freq2=None, units='uk', lmax 
     #filename = os.path.join(
     #    os.path.dirname(__file__), 'data/foregrounds/george_plot_bestfit_line.sav'
     #)
-    filename = 'george_plot_bestfit_line.sav'
-    from scipy.io import readsav
 
-    data = readsav(filename)
+    #fix me: file / folder path
+    from scipy.io import readsav
+    try:
+        filename = 'george_plot_bestfit_line.sav'
+        data = readsav(filename)
+    except:        
+        filename = '/Users/sraghunathan/Research/SPTPol/analysis/git/DRAFT/data/george_plot_bestfit_line.sav'
+        data = readsav(filename)
+
 
     #from IPython import embed; embed()
     if freq2 is None:
@@ -64,7 +70,7 @@ def get_foreground_power_spt(component, freq1=150, freq2=None, units='uk', lmax 
     freqs = np.asarray(
         [(95, 95), (95, 150), (95, 220), (150, 150), (150, 220), (220, 220)]
     )
-    dls_all = data['ml_dls'][(freqs[:, 0] == freq1) & (freqs[:, 1] == freq2)][0]
+    dl_all = data['ml_dls'][(freqs[:, 0] == freq1) & (freqs[:, 1] == freq2)][0]
     labels = data['ml_dl_labels'].astype('str')
     el = np.asarray(data['ml_l'], dtype=int)
 
@@ -73,9 +79,9 @@ def get_foreground_power_spt(component, freq1=150, freq2=None, units='uk', lmax 
         for fg in components:
             if fg in ['all', 'tSZ-CIB', 'Total', 'CMB']:
                 continue
-            spec += dls_all[labels == fg][0]
+            spec += dl_all[labels == fg][0]
     else:
-        spec = dls_all[labels == component][0]
+        spec = dl_all[labels == component][0]
 
     # Changing Dls to Cls
     spec /= el * (el + 1.0) / 2.0 / np.pi
@@ -149,9 +155,9 @@ def get_cl_dust(freq1, freq2, fg_model = 'george15', freq0 = 150, spec_index_dg_
         el_norm = 3000
 
     #conert to Dls
-    Dls_fac = el * (el+1)/2/np.pi
-    Dls_dg_po = Dls_fac * cl_dg_po_freq0
-    Dls_dg_clus = Dls_fac * cl_dg_clus_freq0
+    dl_fac = el * (el+1)/2/np.pi
+    dl_dg_po = dl_fac * cl_dg_po_freq0
+    dl_dg_clus = dl_fac * cl_dg_clus_freq0
 
     nr = ( fn_dB_dT(freq0) )**2.
     dr = fn_dB_dT(freq1) * fn_dB_dT(freq2)
@@ -170,11 +176,11 @@ def get_cl_dust(freq1, freq2, fg_model = 'george15', freq0 = 150, spec_index_dg_
     etanu2_dg_clus = ((1.*freq2*1e9)**spec_index_dg_clus) * bnu2
     etanu0_dg_clus = ((1.*freq0*1e9)**spec_index_dg_clus) * bnu0
 
-    Dls_dg_po = Dls_dg_po[el == el_norm][0] * epsilon_nu1_nu2 * (1.*etanu1_dg_po * etanu2_dg_po/etanu0_dg_po/etanu0_dg_po) * (el*1./el_norm)**2
-    Dls_dg_clus = Dls_dg_clus[el == el_norm][0] * epsilon_nu1_nu2 * (1.*etanu1_dg_clus * etanu2_dg_clus/etanu0_dg_clus/etanu0_dg_clus) * (el*1./el_norm)**0.8
+    dl_dg_po = dl_dg_po[el == el_norm][0] * epsilon_nu1_nu2 * (1.*etanu1_dg_po * etanu2_dg_po/etanu0_dg_po/etanu0_dg_po) * (el*1./el_norm)**2
+    dl_dg_clus = dl_dg_clus[el == el_norm][0] * epsilon_nu1_nu2 * (1.*etanu1_dg_clus * etanu2_dg_clus/etanu0_dg_clus/etanu0_dg_clus) * (el*1./el_norm)**0.8
 
-    cl_dg_po = Dls_dg_po / Dls_fac
-    cl_dg_clus = Dls_dg_clus / Dls_fac
+    cl_dg_po = dl_dg_po / dl_fac
+    cl_dg_clus = dl_dg_clus / dl_fac
 
     cl_dg_po[np.isnan(cl_dg_po)] = 0.
     cl_dg_clus[np.isinf(cl_dg_clus)] = 0.
@@ -205,17 +211,17 @@ def get_cl_radio(freq1, freq2, freq0 = 150, fg_model = 'george15', spec_index_rg
         el_norm = 3000
 
     #conert to Dls
-    Dls_fac = el * (el+1)/2/np.pi
-    Dls_rg = Dls_fac * cl_rg_freq0
+    dl_fac = el * (el+1)/2/np.pi
+    dl_rg = dl_fac * cl_rg_freq0
 
     nr = ( fn_dB_dT(freq0) )**2.
     dr = fn_dB_dT(freq1) * fn_dB_dT(freq2)
 
     epsilon_nu1_nu2 = nr/dr
 
-    Dls_rg = Dls_rg[el == el_norm][0] * epsilon_nu1_nu2 * (1.*freq1 * freq2/freq0/freq0)**spec_index_rg * (el*1./el_norm)**2
+    dl_rg = dl_rg[el == el_norm][0] * epsilon_nu1_nu2 * (1.*freq1 * freq2/freq0/freq0)**spec_index_rg * (el*1./el_norm)**2
 
-    cl_rg = Dls_rg / Dls_fac
+    cl_rg = dl_rg / dl_fac
 
     cl_rg[np.isnan(cl_rg)] = 0.
 
@@ -240,6 +246,20 @@ def get_cl_galactic(param_dict, component, freq1, freq2, which_spec,  which_gal_
     elif component == 'sync':
         cl_gal_dic_fname = param_dict['cl_gal_dic_sync_fname']
 
+    try:
+        cl_gal_folder = param_dict['cl_gal_folder']
+        cl_gal_dic_fname = '%s/%s' %(cl_gal_folder, cl_gal_dic_fname)
+    except:
+        pass
+
+    if (0):##component == 'sync':
+        #fix me: Forcing sync. to CUmilta's simulations
+        print('\n\t\tForcing sync. to CUmilta\'s simulations\n\n')
+        try:
+            cl_gal_dic_fname = param_dict['cl_gal_dic_sync_fname_forced']
+        except:
+            pass
+
     cl_gal_dic = np.load(cl_gal_dic_fname, allow_pickle = 1, encoding = 'latin1').item()['cl_dic'][which_gal_mask]
 
     try:
@@ -254,10 +274,15 @@ def get_cl_galactic(param_dict, component, freq1, freq2, which_spec,  which_gal_
     if np.ndim(cl_gal) == 1: #TT-only. Pol will fail.
         cl_gal = np.asarray( [cl_gal] )
 
-    try:
-        cl_gal = cl_gal[spec_ind]
-    except:
-        cl_gal = np.zeros( len(cl_gal[0]) )
+    if which_spec == 'TE' and cl_gal_dic_fname.find('CUmilta')==-1:
+        #force TE to be np.sqrt(TT) * np.sqrt(EE)
+        cl_gal = np.sqrt( cl_gal[0] * cl_gal[1] )
+    else:
+        try:
+            cl_gal = cl_gal[spec_ind]
+        except:
+            print('(%s,%s) not found for mask = %s in %s. Setting them to zeros.' %(freq1, freq2, which_spec, cl_gal_dic_fname))
+            cl_gal = np.zeros( len(cl_gal[0]) )
 
     el_gal = np.arange( len(cl_gal) )
 
@@ -279,3 +304,44 @@ def get_cl_galactic(param_dict, component, freq1, freq2, which_spec,  which_gal_
     ##print(which_spec, cl_gal[:10], freq1, freq2)
 
     return el_gal, cl_gal
+
+def get_cl_dust(el, freq1, freq2 = None, freq0 = 353., el_norm = 80., el_slope = -0.58, Tdust = 19.6, Adust_freq0 = 4.3, spec_index_dust = 1.6, return_dl = 0):
+
+    if freq2 is None:
+        freq2 = freq1
+
+    nr = ( fn_dB_dT(freq0) )**2.
+    dr = fn_dB_dT(freq1) * fn_dB_dT(freq2)
+
+    epsilon_nu1_nu2 = nr/dr
+
+    bnu1 = fn_BnuT(freq1, temp = Tdust)
+    bnu2 = fn_BnuT(freq2, temp = Tdust)
+    bnu0 = fn_BnuT(freq0, temp = Tdust)
+
+    etanu1_dust = ((1.*freq1*1e9)**spec_index_dust) * bnu1
+    etanu2_dust = ((1.*freq2*1e9)**spec_index_dust) * bnu2
+    etanu0_dust = ((1.*freq0*1e9)**spec_index_dust) * bnu0
+
+    dl_dust = Adust_freq0 * epsilon_nu1_nu2 * (1.*etanu1_dust * etanu2_dust/etanu0_dust/etanu0_dust) * (el*1./el_norm)**el_slope
+
+    if return_dl:
+        return dl_dust
+    else:
+        dl_fac = el * (el+1)/2/np.pi
+        cl_dust = dl_dust / dl_fac
+    return cl_dust
+
+
+"""
+els = np.arange(1,100)
+elval = 80.
+Adust_90 = fn_dust_amp(elval, 90.)
+Adust_150 = fn_dust_amp(elval, 150.)
+Adust_220 = fn_dust_amp(elval, 220.)
+
+#cl_dust_150 = fn_dust_amp(elval, 90.)
+
+print(Adust_90, Adust_150, Adust_220)
+"""
+
